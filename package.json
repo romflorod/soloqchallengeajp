@@ -2,6 +2,10 @@
   "name": "riot-api-vercel",
   "version": "1.0.0",
   "type": "module",
+  "scripts": {
+    "build": "echo 'Build complete'",
+    "start": "node api/player.js"
+  },
   "dependencies": {
     "node-fetch": "^3.3.2"
   }
