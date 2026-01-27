@@ -30,6 +30,14 @@
       text-align: center;
     }
 
+    .header-container {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 15px;
+      margin-bottom: 2rem;
+    }
+
     /* Leaderboard Container */
     #leaderboard {
       width: 100%;
@@ -41,6 +49,8 @@
 
     /* Card Styles */
     .card {
+      text-decoration: none; /* Quitar subrayado de enlace */
+      color: inherit; /* Mantener color de texto */
       background-color: #1e293b; /* Slate 800 */
       border: 1px solid #334155; /* Slate 700 */
       border-radius: 1rem;
@@ -56,6 +66,7 @@
       transform: translateY(-4px);
       box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
       border-color: #64748b;
+      cursor: pointer;
     }
 
     /* Rank Position */
@@ -126,11 +137,43 @@
       font-style: italic;
       padding: 2rem;
     }
+
+    /* Skeleton Loading */
+    .skeleton {
+      background: #1e293b;
+      border-radius: 1rem;
+      padding: 1.5rem;
+      height: 100px;
+      animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+      border: 1px solid #334155;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: .5; }
+    }
+
+    .refresh-btn {
+      background: #334155;
+      border: none;
+      color: #f8fafc;
+      padding: 0.5rem 1rem;
+      border-radius: 0.5rem;
+      cursor: pointer;
+      font-size: 1.2rem;
+      transition: background 0.2s;
+    }
+    .refresh-btn:hover {
+      background: #475569;
+    }
   </style>
 </head>
 <body>
 
-<h1>🏆 SoloQ Challenge 🏆</h1>
+<div class="header-container">
+  <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
+  <button onclick="loadLeaderboard()" class="refresh-btn" title="Actualizar datos">🔄</button>
+</div>
+
 <div id="leaderboard">
   <div class="loading">Cargando datos de la grieta...</div>
 </div>
@@ -144,8 +187,9 @@ const players = [
   { summonerName: "Vivan los MONOS", tag: "EUW" }
 ];
 
-// Cambia esto a "/api/player" cuando subas a Vercel
+// const API_BASE = "http://127.0.0.1:5000/api/player";
 const API_BASE = "/api/player";
+
 
 const tierValues = {
   "CHALLENGER": 90, "GRANDMASTER": 80, "MASTER": 70,
@@ -172,7 +216,9 @@ function calculateScore(p) {
 
 async function loadLeaderboard() {
   const leaderboard = document.getElementById("leaderboard");
-  // leaderboard.innerHTML = '<div class="loading">Cargando datos...</div>'; // Ya está en el HTML inicial
+  
+  // Mostrar skeletons mientras carga
+  leaderboard.innerHTML = Array(players.length).fill('<div class="skeleton"></div>').join('');
 
   const results = [];
 
@@ -194,7 +240,8 @@ async function loadLeaderboard() {
         lp: 0,
         wins: 0,
         losses: 0,
-        error: true
+        error: true,
+        opgg_url: `https://www.op.gg/summoners/euw/${encodeURIComponent(p.summonerName)}-${p.tag}`
       };
     }
   });
@@ -211,13 +258,15 @@ async function loadLeaderboard() {
     const winrate = totalGames > 0 ? Math.round((p.wins / totalGames) * 100) : 0;
     const winrateColor = winrate >= 50 ? "high" : "low";
     
-    const div = document.createElement("div");
-    div.className = "card";
+    const card = document.createElement("a");
+    card.className = "card";
+    card.href = p.opgg_url || `https://www.op.gg/summoners/euw/${encodeURIComponent(p.name)}-${p.tag}`;
+    card.target = "_blank"; // Abrir en nueva pestaña
     
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
 
-    div.innerHTML = `
+    card.innerHTML = `
       <div class="rank-pos ${rankClass}">#${index + 1}</div>
       <div class="player-info">
         <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
@@ -231,7 +280,7 @@ async function loadLeaderboard() {
         <div class="lp-text">${p.lp} LP</div>
       </div>
     `;
-    leaderboard.appendChild(div);
+    leaderboard.appendChild(card);
   });
 }
 

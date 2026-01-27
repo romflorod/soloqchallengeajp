@@ -157,7 +157,8 @@ def player():
             "rank": rank,
             "lp": lp,
             "wins": wins,
-            "losses": losses
+            "losses": losses,
+            "opgg_url": opgg_url
         }
         return jsonify(response)
         
