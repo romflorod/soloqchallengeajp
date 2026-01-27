@@ -4,13 +4,24 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SoloQ Challenge</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
   <style>
     /* Reset & Base */
     * { box-sizing: border-box; }
+    :root {
+      --bg-dark: #020617;
+      --card-bg: rgba(30, 41, 59, 0.6);
+      --card-border: rgba(148, 163, 184, 0.1);
+      --accent-glow: rgba(56, 189, 248, 0.15);
+    }
+
     body {
-      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-      background-color: #0f172a; /* Slate 900 */
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
       color: #f8fafc; /* Slate 50 */
+      background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, transparent 75%), radial-gradient(circle at 85% 30%, var(--accent-glow) 0%, transparent 50%);
       margin: 0;
       padding: 20px;
       display: flex;
@@ -20,14 +31,16 @@
     }
 
     h1 {
-      font-size: 2.5rem;
+      font-size: 3rem;
+      font-weight: 800;
       margin-bottom: 2rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
-      background: linear-gradient(to right, #38bdf8, #818cf8);
+      letter-spacing: -0.02em;
+      background: linear-gradient(135deg, #38bdf8 0%, #818cf8 100%);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       text-align: center;
+      text-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
     }
 
     .header-container {
@@ -51,51 +64,68 @@
     .card {
       text-decoration: none; /* Quitar subrayado de enlace */
       color: inherit; /* Mantener color de texto */
-      background-color: #1e293b; /* Slate 800 */
-      border: 1px solid #334155; /* Slate 700 */
-      border-radius: 1rem;
-      padding: 1.5rem;
+      background-color: var(--card-bg);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border: 1px solid var(--card-border);
+      border-radius: 1.5rem;
+      padding: 1.25rem 2rem;
       display: flex;
       align-items: center;
-      justify-content: space-between;
+      gap: 1.5rem;
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      position: relative;
+      overflow: hidden;
     }
 
     .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
-      border-color: #64748b;
+      transform: translateY(-3px) scale(1.01);
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+      border-color: rgba(56, 189, 248, 0.3);
       cursor: pointer;
+      background-color: rgba(30, 41, 59, 0.8);
     }
 
     /* Rank Position */
     .rank-pos {
-      font-size: 2rem;
+      font-size: 2.5rem;
       font-weight: 800;
       color: #475569; /* Slate 600 */
-      width: 3rem;
+      min-width: 3rem;
       text-align: center;
-      margin-right: 1rem;
+      font-variant-numeric: tabular-nums;
     }
-    .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); } /* Gold */
-    .rank-pos.top-2 { color: #94a3b8; text-shadow: 0 0 10px rgba(148, 163, 184, 0.3); } /* Silver */
-    .rank-pos.top-3 { color: #b45309; text-shadow: 0 0 10px rgba(180, 83, 9, 0.3); } /* Bronze */
+    .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 20px rgba(251, 191, 36, 0.4); } /* Gold */
+    .rank-pos.top-2 { color: #e2e8f0; text-shadow: 0 0 20px rgba(226, 232, 240, 0.4); } /* Silver */
+    .rank-pos.top-3 { color: #b45309; text-shadow: 0 0 20px rgba(180, 83, 9, 0.4); } /* Bronze */
+
+    /* Rank Icon */
+    .rank-icon {
+      width: 60px;
+      height: 60px;
+      object-fit: contain;
+      filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
+    }
 
     /* Player Info */
     .player-info {
       flex: 1;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
     }
 
     .summoner-name {
-      font-size: 1.25rem;
-      font-weight: 700;
-      margin-bottom: 0.25rem;
+      font-size: 1.4rem;
+      font-weight: 600;
+      margin-bottom: 0.1rem;
+      letter-spacing: -0.01em;
     }
     .summoner-tag {
       color: #94a3b8;
       font-weight: 400;
-      font-size: 1rem;
+      font-size: 1.1rem;
     }
 
     /* Tier Info */
@@ -104,31 +134,52 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
+      min-width: 120px;
     }
 
     .tier-text {
-      font-size: 1.1rem;
-      font-weight: 700;
+      font-size: 1.2rem;
+      font-weight: 800;
       color: #38bdf8; /* Sky 400 */
       text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .lp-text {
-      font-size: 0.9rem;
+      font-size: 1rem;
+      font-weight: 500;
       color: #cbd5e1;
-      margin-bottom: 0.25rem;
     }
 
-    .winrate {
-      font-size: 0.85rem;
+    /* Winrate Bar */
+    .winrate-container {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 6px;
+      font-size: 0.8rem;
       color: #94a3b8;
-      background: #0f172a;
-      padding: 0.25rem 0.5rem;
-      border-radius: 0.5rem;
     }
     
-    .winrate span.high { color: #4ade80; }
-    .winrate span.low { color: #f87171; }
+    .progress-bg {
+      width: 100px;
+      height: 6px;
+      background: #334155;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #38bdf8, #818cf8);
+      border-radius: 3px;
+    }
+    
+    .winrate-text {
+      font-weight: 600;
+    }
+    .winrate-text.high { color: #4ade80; }
+    .winrate-text.low { color: #f87171; }
 
     /* Loading State */
     .loading {
@@ -140,30 +191,41 @@
 
     /* Skeleton Loading */
     .skeleton {
-      background: #1e293b;
-      border-radius: 1rem;
-      padding: 1.5rem;
-      height: 100px;
+      background: rgba(30, 41, 59, 0.5);
+      border-radius: 1.5rem;
+      height: 110px;
+      margin-bottom: 1rem;
       animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
-      border: 1px solid #334155;
+      border: 1px solid rgba(255,255,255,0.05);
     }
     @keyframes pulse {
       0%, 100% { opacity: 1; }
       50% { opacity: .5; }
     }
+    
+    /* Fade In Animation */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .card { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
 
     .refresh-btn {
-      background: #334155;
+      background: rgba(255, 255, 255, 0.1);
       border: none;
       color: #f8fafc;
-      padding: 0.5rem 1rem;
-      border-radius: 0.5rem;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
       cursor: pointer;
       font-size: 1.2rem;
       transition: background 0.2s;
     }
     .refresh-btn:hover {
-      background: #475569;
+      background: rgba(255, 255, 255, 0.2);
     }
   </style>
 </head>
@@ -202,6 +264,12 @@ function getRankValue(rankStr) {
     if (!rankStr) return 0;
     const map = { "I": 1, "II": 2, "III": 3, "IV": 4, "1": 1, "2": 2, "3": 3, "4": 4 };
     return map[rankStr.toString().toUpperCase()] || 0;
+}
+
+function getRankIcon(tier) {
+    if (!tier || tier === "UNRANKED") return "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-unranked.png";
+    // CommunityDragon usa nombres en minúscula para los archivos (ej: emblem-gold.png)
+    return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`;
 }
 
 function calculateScore(p) {
@@ -262,17 +330,22 @@ async function loadLeaderboard() {
     card.className = "card";
     card.href = p.opgg_url || `https://www.op.gg/summoners/euw/${encodeURIComponent(p.name)}-${p.tag}`;
     card.target = "_blank"; // Abrir en nueva pestaña
+    card.style.animationDelay = `${index * 0.1}s`; // Stagger animation
     
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
 
     card.innerHTML = `
       <div class="rank-pos ${rankClass}">#${index + 1}</div>
+      <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
       <div class="player-info">
         <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
-        <div class="winrate">
-            ${p.wins}W ${p.losses}L 
-            (<span class="${winrateColor}">${winrate}%</span> WR)
+        <div class="winrate-container">
+            <div class="progress-bg">
+                <div class="progress-fill" style="width: ${winrate}%"></div>
+            </div>
+            <span class="winrate-text ${winrateColor}">${winrate}% WR</span>
+            <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
         </div>
       </div>
       <div class="tier-info">
