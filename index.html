@@ -13,16 +13,20 @@
     * { box-sizing: border-box; }
     :root {
       --bg-dark: #020617;
-      --card-bg: rgba(30, 41, 59, 0.6);
-      --card-border: rgba(148, 163, 184, 0.1);
+      --card-bg: rgba(15, 23, 42, 0.6);
+      --card-border: rgba(56, 189, 248, 0.1);
       --accent-glow: rgba(56, 189, 248, 0.15);
+      --gold: #fbbf24;
     }
 
     body {
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
       color: #f8fafc; /* Slate 50 */
-      background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, transparent 75%), radial-gradient(circle at 85% 30%, var(--accent-glow) 0%, transparent 50%);
+      background-image: 
+        radial-gradient(circle at 50% -20%, #1e293b 0%, transparent 75%), 
+        radial-gradient(circle at 100% 50%, rgba(56, 189, 248, 0.05) 0%, transparent 50%),
+        radial-gradient(circle at 0% 50%, rgba(139, 92, 246, 0.05) 0%, transparent 50%);
       margin: 0;
       padding: 20px;
       display: flex;
@@ -49,8 +53,8 @@
       height: 60px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid #38bdf8;
-      box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+      border: 2px solid rgba(255,255,255,0.1);
+      box-shadow: 0 0 20px rgba(56, 189, 248, 0.2);
     }
 
     .header-container {
@@ -79,7 +83,6 @@
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--card-border);
       border-radius: 1.5rem;
-      /* padding: 1.25rem 2rem;  <-- Quitamos padding global para manejarlo dentro */
       display: flex;
       flex-direction: column; /* Para el desplegable */
       transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -91,25 +94,25 @@
     .card-main {
       display: flex;
       align-items: center;
-      gap: 1.5rem;
-      padding: 1.25rem 2rem;
+      gap: 1rem;
+      padding: 1.5rem;
       width: 100%;
     }
 
     .card:hover {
       transform: translateY(-3px) scale(1.01);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
-      border-color: rgba(56, 189, 248, 0.3);
+      box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.3), 0 0 15px rgba(56, 189, 248, 0.1);
+      border-color: rgba(56, 189, 248, 0.4);
       cursor: pointer;
-      background-color: rgba(30, 41, 59, 0.8);
+      background-color: rgba(30, 41, 59, 0.7);
     }
     
     /* Detalles Desplegables */
     .card-details {
       display: none;
-      padding: 0 2rem 1.5rem 2rem;
+      padding: 0 1.5rem 1.5rem 1.5rem;
       border-top: 1px solid rgba(255,255,255,0.05);
-      background: rgba(0,0,0,0.2);
+      background: rgba(0,0,0,0.3);
       width: 100%;
       animation: slideDown 0.3s ease-out;
     }
@@ -138,19 +141,42 @@
       font-size: 0.9rem;
       text-transform: uppercase;
       letter-spacing: 0.05em;
-      color: #94a3b8;
+      color: #64748b;
       margin: 1rem 0 0.5rem 0;
-      font-weight: 800;
+      font-weight: 700;
+      display: flex;
+      justify-content: space-between;
     }
 
     .champ-row {
-      font-size: 0.95rem;
-      padding: 6px 0;
+      display: grid;
+      grid-template-columns: 40px 2fr 1fr 1fr;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
       border-bottom: 1px solid rgba(255,255,255,0.05);
       color: #cbd5e1;
-      display: flex;
-      align-items: center;
+      font-size: 0.9rem;
     }
+    
+    .champ-img-small {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    
+    .champ-name { font-weight: 600; color: #f1f5f9; }
+    .champ-stats { font-size: 0.8rem; color: #94a3b8; }
+    
+    .champ-bar-bg {
+      height: 4px;
+      background: rgba(255,255,255,0.1);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 4px;
+    }
+    .champ-bar-fill { height: 100%; border-radius: 2px; }
     
     .champ-row:last-child { border-bottom: none; }
 
@@ -176,10 +202,10 @@
 
     /* Rank Position */
     .rank-pos {
-      font-size: 2.5rem;
+      font-size: 2rem;
       font-weight: 800;
       color: #475569; /* Slate 600 */
-      min-width: 3rem;
+      min-width: 2.5rem;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
@@ -189,8 +215,8 @@
 
     /* Rank Icon */
     .rank-icon {
-      width: 60px;
-      height: 60px;
+      width: 50px;
+      height: 50px;
       object-fit: contain;
       filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
     }
@@ -201,18 +227,20 @@
       display: flex;
       flex-direction: column;
       justify-content: center;
+      padding-left: 0.5rem;
     }
 
     .summoner-name {
-      font-size: 1.4rem;
-      font-weight: 600;
+      font-size: 1.2rem;
+      font-weight: 700;
       margin-bottom: 0.1rem;
       letter-spacing: -0.01em;
+      color: #fff;
     }
     .summoner-tag {
       color: #94a3b8;
       font-weight: 400;
-      font-size: 1.1rem;
+      font-size: 0.9rem;
     }
 
     /* Tier Info */
@@ -221,11 +249,11 @@
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      min-width: 120px;
+      min-width: 100px;
     }
 
     .tier-text {
-      font-size: 1.2rem;
+      font-size: 1rem;
       font-weight: 800;
       color: #38bdf8; /* Sky 400 */
       text-transform: uppercase;
@@ -233,7 +261,7 @@
     }
 
     .lp-text {
-      font-size: 1rem;
+      font-size: 0.9rem;
       font-weight: 500;
       color: #cbd5e1;
     }
@@ -249,17 +277,17 @@
     }
     
     .progress-bg {
-      width: 100px;
-      height: 6px;
+      width: 80px;
+      height: 4px;
       background: #334155;
-      border-radius: 3px;
+      border-radius: 2px;
       overflow: hidden;
     }
     
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #38bdf8, #818cf8);
-      border-radius: 3px;
+      border-radius: 2px;
     }
     
     .winrate-text {
@@ -267,6 +295,24 @@
     }
     .winrate-text.high { color: #4ade80; }
     .winrate-text.low { color: #f87171; }
+    
+    /* OTP Section */
+    .otp-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      margin-right: 1rem;
+      min-width: 60px;
+    }
+    .otp-img {
+      width: 45px;
+      height: 45px;
+      border-radius: 10px;
+      border: 2px solid #334155;
+      transition: transform 0.2s;
+    }
+    .card:hover .otp-img { border-color: #38bdf8; transform: scale(1.1); }
+    .otp-label { font-size: 0.7rem; color: #64748b; margin-top: 4px; font-weight: 700; letter-spacing: 0.05em; }
 
     /* Loading State */
     .loading {
@@ -360,6 +406,30 @@ function getRankIcon(tier) {
     return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`;
 }
 
+function getChampImage(name) {
+    if (!name) return "";
+    // Normalización básica para DataDragon (eliminar espacios, puntos, apóstrofes)
+    let cleanName = name.replace(/[^a-zA-Z]/g, '');
+    
+    // Excepciones comunes
+    const exceptions = {
+        "Wukong": "MonkeyKing",
+        "RenataGlasc": "Renata",
+        "Nunu&Willump": "Nunu",
+        "LeBlanc": "Leblanc",
+        "KhaZix": "Khazix",
+        "ChoGath": "Chogath",
+        "KaiSa": "Kaisa",
+        "VelKoz": "Velkoz",
+        "BelVeth": "Belveth"
+    };
+    
+    if (exceptions[cleanName]) cleanName = exceptions[cleanName];
+    if (exceptions[name]) cleanName = exceptions[name]; // Check original name too
+    
+    return `https://ddragon.leagueoflegends.com/cdn/14.2.1/img/champion/${cleanName}.png`;
+}
+
 function calculateScore(p) {
     let score = (tierValues[p.tier.toUpperCase()] || -10) * 1000;
     const r = getRankValue(p.rank);
@@ -426,11 +496,25 @@ async function loadLeaderboard() {
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
 
+    // Detectar OTP (Campeón más jugado)
+    const mainChamp = (p.top_champs && p.top_champs.length > 0) ? p.top_champs[0] : null;
+    const otpImage = mainChamp ? getChampImage(mainChamp.name) : '';
+
     // Construir HTML de estadísticas
     let champsHtml = '';
     if (p.top_champs && p.top_champs.length > 0) {
         p.top_champs.forEach(c => {
-            champsHtml += `<div class="champ-row">🔹 ${c}</div>`;
+            const wrColor = c.winrate >= 55 ? '#4ade80' : (c.winrate < 45 ? '#f87171' : '#cbd5e1');
+            champsHtml += `
+            <div class="champ-row">
+                <img src="${getChampImage(c.name)}" class="champ-img-small" alt="${c.name}">
+                <div class="champ-name">${c.name}</div>
+                <div class="champ-stats">${c.wins}W ${c.losses}L</div>
+                <div style="text-align:right">
+                    <div style="color:${wrColor}; font-weight:bold;">${c.winrate}%</div>
+                    <div class="champ-bar-bg"><div class="champ-bar-fill" style="width:${c.winrate}%; background:${wrColor}"></div></div>
+                </div>
+            </div>`;
         });
     } else {
         champsHtml = '<div class="champ-row" style="font-style:italic; opacity:0.6">No hay datos recientes disponibles</div>';
@@ -440,6 +524,7 @@ async function loadLeaderboard() {
       <div class="card-main">
           <div class="rank-pos ${rankClass}">#${index + 1}</div>
           <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
+          
           <div class="player-info">
             <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
             <div class="winrate-container">
@@ -450,6 +535,13 @@ async function loadLeaderboard() {
                 <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
             </div>
           </div>
+
+          ${mainChamp ? `
+          <div class="otp-section">
+            <img src="${otpImage}" class="otp-img" title="Main: ${mainChamp.name}">
+            <div class="otp-label">MAIN</div>
+          </div>` : ''}
+
           <div class="tier-info">
             <div class="tier-text">${p.tier} ${p.rank}</div>
             <div class="lp-text">${p.lp} LP</div>
@@ -457,7 +549,10 @@ async function loadLeaderboard() {
           <div class="expand-icon">▼</div>
       </div>
       <div class="card-details">
-          <div class="stats-title">Estadísticas Recientes</div>
+          <div class="stats-title">
+            <span>Campeones</span>
+            <span>Winrate</span>
+          </div>
           ${champsHtml}
           <a href="${p.opgg_url || '#'}" target="_blank" class="opgg-btn">Ver perfil completo en OP.GG ↗</a>
       </div>

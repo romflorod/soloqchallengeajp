@@ -87,8 +87,19 @@ def player():
                 parts = content.split(' / ')
                 if len(parts) >= 4:
                     raw_champs = parts[3]
-                    # Separar por comas para tener una lista
-                    top_champs = [c.strip() for c in raw_champs.split(',')]
+                    # Parsear campeones a objetos estructurados
+                    # Formato esperado: "Malzahar - 8Win 5Lose Win rate 62%"
+                    for champ_str in raw_champs.split(','):
+                        champ_str = champ_str.strip()
+                        # Regex para extraer datos: Nombre - Wins - Losses - Winrate
+                        match = re.search(r'(.+?)\s*-\s*(\d+)Win\s+(\d+)Lose\s+Win\s+rate\s+(\d+)%', champ_str)
+                        if match:
+                            top_champs.append({
+                                "name": match.group(1).strip(),
+                                "wins": int(match.group(2)),
+                                "losses": int(match.group(3)),
+                                "winrate": int(match.group(4))
+                            })
             
             # Si encontramos la meta tag, usamos estos datos y saltamos el resto
             json_success = True 
