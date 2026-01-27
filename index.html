@@ -237,6 +237,18 @@
       letter-spacing: -0.01em;
       color: #fff;
     }
+    
+    .level-badge {
+      font-size: 0.75rem;
+      background: #334155;
+      color: #cbd5e1;
+      padding: 1px 6px;
+      border-radius: 4px;
+      margin-left: 6px;
+      vertical-align: middle;
+      font-weight: 400;
+    }
+
     .summoner-tag {
       color: #94a3b8;
       font-weight: 400;
@@ -264,6 +276,28 @@
       font-size: 0.9rem;
       font-weight: 500;
       color: #cbd5e1;
+    }
+    
+    .ladder-rank {
+      font-size: 0.75rem;
+      color: #64748b;
+      margin-top: 2px;
+    }
+    
+    .extra-ranks {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      margin-top: 4px;
+      gap: 2px;
+    }
+    .rank-badge-small {
+      font-size: 0.65rem;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(255,255,255,0.05);
+      color: #94a3b8;
+      border: 1px solid rgba(255,255,255,0.1);
     }
 
     /* Winrate Bar */
@@ -602,7 +636,10 @@ async function loadLeaderboard() {
           <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
           
           <div class="player-info">
-            <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
+            <div class="summoner-name">
+                ${p.name} <span class="summoner-tag">#${p.tag}</span>
+                ${p.level ? `<span class="level-badge">Lvl ${p.level}</span>` : ''}
+            </div>
             <div class="winrate-container">
                 <div class="progress-bg">
                     <div class="progress-fill" style="width: ${winrate}%"></div>
@@ -619,6 +656,11 @@ async function loadLeaderboard() {
           <div class="tier-info">
             <div class="tier-text">${p.tier} ${p.rank}</div>
             <div class="lp-text">${p.lp} LP</div>
+            ${p.ladder_rank ? `<div class="ladder-rank">Rank #${p.ladder_rank}</div>` : ''}
+            <div class="extra-ranks">
+                ${p.past_rank ? `<div class="rank-badge-small" title="Season 2024 Rank">S24: ${p.past_rank}</div>` : ''}
+                ${p.ranked_flex ? `<div class="rank-badge-small" title="Ranked Flex">Flex: ${p.ranked_flex}</div>` : ''}
+            </div>
           </div>
           <div class="expand-icon">▼</div>
       </div>

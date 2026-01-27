@@ -54,6 +54,11 @@ def player():
         avg_d = None
         avg_a = None
         streak = None
+        ladder_rank = None
+        level = None
+        ranked_flex = None
+        mastery = None
+        past_rank = None
         top_champs = []
         
         # DEBUG: Imprimir título para ver si es Cloudflare o error 404
@@ -112,12 +117,45 @@ def player():
         # 0.5 Intentar extraer KDA y Rachas del texto HTML (Funciona incluso si falla JSON)
         # op.gg suele poner el KDA como "3.45:1" y los promedios como "5.2 / 4.1 / 8.3"
         try:
-            text_content = soup.get_text()
+            # Usar separador de espacio para evitar que se peguen las palabras (ej: Mastery34 -> Mastery 34)
+            text_content = soup.get_text(separator=' ')
             
-            # Buscar KDA Ratio (Ej: 3.45:1)
-            kda_match = re.search(r"KDA\s*(\d+\.\d+):1", text_content, re.IGNORECASE)
-            if not kda_match: # Intento alternativo sin la palabra KDA delante
-                kda_match = re.search(r"(\d+\.\d+):1", text_content)
+            # --- LEVEL ---
+            # Intentar buscar por clase (más preciso)
+            level_tag = soup.find("span", class_="level")
+            if level_tag:
+                level = level_tag.get_text().strip()
+            else:
+                # Fallback regex: "Level 123", "Lvl 123", "Level123"
+                level_match = re.search(r"(?:Level|Lvl)\.?\s*(\d+)", text_content, re.IGNORECASE)
+                if level_match:
+                    level = level_match.group(1)
+            
+            # --- MASTERY ---
+            # Ej: "Mastery 34 Malzahar 342,114 pts"
+            mastery_match = re.search(r"Mastery\s*\d+\s*(.+?)\s*([\d,]+)\s*pts", text_content)
+            if mastery_match:
+                mastery = {
+                    "champ": mastery_match.group(1).strip(),
+                    "points": mastery_match.group(2)
+                }
+
+            # --- PAST RANK (S2024 S3) ---
+            # Ej: "S2024 S3 platinum 3" o "S2023 S2 emerald 2"
+            past_rank_match = re.search(r"S2024\s*S\d\s*([a-zA-Z]+\s*\d*)", text_content, re.IGNORECASE)
+            if past_rank_match:
+                past_rank = past_rank_match.group(1).upper()
+
+            # --- RANKED FLEX ---
+            # Ej: "Ranked Flex emerald 1 14 LP"
+            flex_match = re.search(r"Ranked Flex\s*([a-zA-Z]+\s*\d*)\s*(\d+)\s*LP", text_content, re.IGNORECASE)
+            if flex_match:
+                ranked_flex = f"{flex_match.group(1).upper()} {flex_match.group(2)} LP"
+
+            # --- KDA ---
+            # Regex más flexible: "3.45:1", "3:1", "3.45 : 1"
+            # Buscamos el patrón X:1 que es muy característico del KDA
+            kda_match = re.search(r"([\d\.]+)\s*:\s*1", text_content)
             if kda_match:
                 kda = kda_match.group(1)
                 
@@ -130,6 +168,11 @@ def player():
             streak_match = re.search(r"(\d+)\s*(Win|Loss)\s*Streak", text_content, re.IGNORECASE)
             if streak_match:
                 streak = f"{streak_match.group(1)} {streak_match.group(2)}"
+                
+            # Buscar Ladder Rank (Ej: Ladder Rank 12,345)
+            ladder_match = re.search(r"Ladder Rank\s*([\d,]+)", text_content, re.IGNORECASE)
+            if ladder_match:
+                ladder_rank = ladder_match.group(1)
         except Exception as e:
             print(f"[Scraper] Error extracting KDA/Streak: {e}")
 
@@ -212,6 +255,11 @@ def player():
             "avg_d": avg_d,
             "avg_a": avg_a,
             "streak": streak,
+            "ladder_rank": ladder_rank,
+            "level": level,
+            "ranked_flex": ranked_flex,
+            "mastery": mastery,
+            "past_rank": past_rank,
             "opgg_url": opgg_url,
             "top_champs": top_champs
         }
