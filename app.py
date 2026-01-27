@@ -49,6 +49,11 @@ def player():
         lp = 0
         wins = 0
         losses = 0
+        kda = None
+        avg_k = None
+        avg_d = None
+        avg_a = None
+        streak = None
         top_champs = []
         
         # DEBUG: Imprimir título para ver si es Cloudflare o error 404
@@ -103,6 +108,28 @@ def player():
             
             # Si encontramos la meta tag, usamos estos datos y saltamos el resto
             json_success = True 
+
+        # 0.5 Intentar extraer KDA y Rachas del texto HTML (Funciona incluso si falla JSON)
+        # op.gg suele poner el KDA como "3.45:1" y los promedios como "5.2 / 4.1 / 8.3"
+        try:
+            text_content = soup.get_text()
+            
+            # Buscar KDA Ratio (Ej: 3.45:1)
+            kda_match = re.search(r"(\d+\.\d+):1", text_content)
+            if kda_match:
+                kda = kda_match.group(1)
+                
+            # Buscar Promedios K/D/A (Ej: 5.2 / 4.1 / 8.3)
+            avg_match = re.search(r"(\d+\.\d+)\s*/\s*(\d+\.\d+)\s*/\s*(\d+\.\d+)", text_content)
+            if avg_match:
+                avg_k, avg_d, avg_a = avg_match.groups()
+                
+            # Buscar Rachas (Ej: 3 Win Streak)
+            streak_match = re.search(r"(\d+)\s*(Win|Loss)\s*Streak", text_content, re.IGNORECASE)
+            if streak_match:
+                streak = f"{streak_match.group(1)} {streak_match.group(2)}"
+        except Exception as e:
+            print(f"[Scraper] Error extracting KDA/Streak: {e}")
 
         # 1. Intentar leer JSON (__NEXT_DATA__) - Método secundario
         next_data_tag = soup.find('script', id='__NEXT_DATA__')
@@ -178,6 +205,11 @@ def player():
             "lp": lp,
             "wins": wins,
             "losses": losses,
+            "kda": kda,
+            "avg_k": avg_k,
+            "avg_d": avg_d,
+            "avg_a": avg_a,
+            "streak": streak,
             "opgg_url": opgg_url,
             "top_champs": top_champs
         }
