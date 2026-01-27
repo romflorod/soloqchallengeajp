@@ -107,6 +107,16 @@
       background-color: rgba(30, 41, 59, 0.7);
     }
     
+    /* Streak Glow Effects */
+    .card.winning-streak {
+      border-color: rgba(74, 222, 128, 0.6);
+      box-shadow: 0 0 25px rgba(74, 222, 128, 0.15);
+    }
+    .card.losing-streak {
+      border-color: rgba(248, 113, 113, 0.6);
+      box-shadow: 0 0 25px rgba(248, 113, 113, 0.15);
+    }
+    
     /* Detalles Desplegables */
     .card-details {
       display: none;
@@ -202,10 +212,10 @@
 
     /* Rank Position */
     .rank-pos {
-      font-size: 2rem;
+      font-size: 2.5rem;
       font-weight: 800;
       color: #475569; /* Slate 600 */
-      min-width: 2.5rem;
+      min-width: 3rem;
       text-align: center;
       font-variant-numeric: tabular-nums;
     }
@@ -215,10 +225,10 @@
 
     /* Rank Icon */
     .rank-icon {
-      width: 50px;
-      height: 50px;
+      width: 85px;
+      height: 85px;
       object-fit: contain;
-      filter: drop-shadow(0 0 8px rgba(0,0,0,0.5));
+      filter: drop-shadow(0 0 12px rgba(0,0,0,0.6));
     }
 
     /* Player Info */
@@ -575,6 +585,12 @@ async function loadLeaderboard() {
         this.classList.toggle('expanded');
     };
     card.style.animationDelay = `${index * 0.1}s`; // Stagger animation
+    
+    // Aplicar borde verde/rojo según la racha
+    if (p.streak) {
+        if (p.streak.includes("Win")) card.classList.add("winning-streak");
+        if (p.streak.includes("Loss")) card.classList.add("losing-streak");
+    }
     
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
