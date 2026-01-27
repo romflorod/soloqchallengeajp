@@ -51,6 +51,38 @@ def fetch_mcp_data(name, tag):
         print(f"[MCP] Exception: {e}")
     return None
 
+def fetch_mcp_matches(name, tag):
+    """Consulta el historial de partidas via MCP."""
+    url = "https://mcp-api.op.gg/mcp"
+    headers = {
+        "Content-Type": "application/json",
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+    }
+    payload = {
+        "jsonrpc": "2.0",
+        "method": "tools/call",
+        "params": {
+            "name": "lol_list_summoner_matches",
+            "arguments": {
+                "region": "euw",
+                "game_name": name,
+                "tagline": tag
+            }
+        },
+        "id": 1
+    }
+    try:
+        res = requests.post(url, json=payload, headers=headers, timeout=5)
+        if res.status_code == 200:
+            json_resp = res.json()
+            if 'result' in json_resp and 'content' in json_resp['result']:
+                for content in json_resp['result']['content']:
+                    if content['type'] == 'text':
+                        return json.loads(content['text'])
+    except Exception:
+        pass
+    return None
+
 @app.route('/api/player', methods=['GET'])
 def player():
     try:
@@ -108,6 +140,20 @@ def player():
                     if f_tier.get('tier'):
                         ranked_flex = f"{f_tier.get('tier')} {f_tier.get('division')} {f_tier.get('lp')} LP"
 
+                # Obtener historial de partidas (Últimos 10)
+                recent_games = []
+                try:
+                    matches_data = fetch_mcp_matches(name, tag)
+                    if matches_data and 'data' in matches_data:
+                        # La estructura suele ser una lista de partidas en 'data'
+                        m_list = matches_data['data'] if isinstance(matches_data['data'], list) else matches_data['data'].get('matches', [])
+                        for m in m_list[:10]:
+                            # Buscamos la propiedad 'win' (true/false)
+                            if 'win' in m:
+                                recent_games.append("W" if m['win'] else "L")
+                except Exception as e:
+                    print(f"[MCP] Error fetching matches: {e}")
+
                 response = {
                     "name": name,
                     "tag": tag,
@@ -127,7 +173,8 @@ def player():
                     "mastery": None,
                     "past_rank": None, # Podría estar en previous_seasons
                     "opgg_url": opgg_url,
-                    "top_champs": top_champs
+                    "top_champs": top_champs,
+                    "recent_games": recent_games
                 }
                 return jsonify(response)
                 
@@ -173,6 +220,7 @@ def player():
         mastery = None
         past_rank = None
         top_champs = []
+        recent_games = []
         
         # DEBUG: Imprimir título para ver si es Cloudflare o error 404
         if soup.title:
@@ -374,7 +422,8 @@ def player():
             "mastery": mastery,
             "past_rank": past_rank,
             "opgg_url": opgg_url,
-            "top_champs": top_champs
+            "top_champs": top_champs,
+            "recent_games": recent_games
         }
         return jsonify(response)
         

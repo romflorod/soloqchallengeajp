@@ -225,10 +225,10 @@
 
     /* Rank Icon */
     .rank-icon {
-      width: 85px;
-      height: 85px;
+      width: 130px; /* Mucho más grande */
+      height: 130px;
       object-fit: contain;
-      filter: drop-shadow(0 0 12px rgba(0,0,0,0.6));
+      filter: drop-shadow(0 0 15px rgba(0,0,0,0.8));
     }
 
     /* Player Info */
@@ -309,6 +309,21 @@
       color: #94a3b8;
       border: 1px solid rgba(255,255,255,0.1);
     }
+    
+    /* Match History Squares */
+    .match-history {
+      display: flex;
+      gap: 4px;
+      margin-top: 8px;
+    }
+    .match-square {
+      width: 18px;
+      height: 18px;
+      border-radius: 4px;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .match-win { background-color: #4ade80; box-shadow: 0 0 8px rgba(74, 222, 128, 0.4); }
+    .match-loss { background-color: #f87171; box-shadow: 0 0 8px rgba(248, 113, 113, 0.4); }
 
     /* Winrate Bar */
     .winrate-container {
@@ -626,6 +641,17 @@ async function loadLeaderboard() {
         `;
     }
 
+    // Match History (Squares)
+    let historyHtml = '';
+    if (p.recent_games && p.recent_games.length > 0) {
+        historyHtml = '<div class="match-history">';
+        p.recent_games.forEach(result => {
+            const resultClass = result === 'W' ? 'match-win' : 'match-loss';
+            historyHtml += `<div class="match-square ${resultClass}" title="${result === 'W' ? 'Victory' : 'Defeat'}"></div>`;
+        });
+        historyHtml += '</div>';
+    }
+
     // Construir HTML de estadísticas
     let champsHtml = '';
     if (p.top_champs && p.top_champs.length > 0) {
@@ -663,6 +689,7 @@ async function loadLeaderboard() {
                 <span class="winrate-text ${winrateColor}">${winrate}% WR</span>
                 <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
             </div>
+            ${historyHtml}
           </div>
 
           ${kdaHtml}
