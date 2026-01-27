@@ -49,6 +49,7 @@ def player():
         lp = 0
         wins = 0
         losses = 0
+        top_champs = []
         
         # DEBUG: Imprimir título para ver si es Cloudflare o error 404
         if soup.title:
@@ -80,6 +81,14 @@ def player():
                 if wl_match:
                     wins = int(wl_match.group(1))
                     losses = int(wl_match.group(2))
+                
+                # Extraer Top Champions (Suele estar en la 4ª parte de la descripción separada por /)
+                # Ejemplo: "... / 5Win 5Lose ... / Malzahar - 60%, Ahri - 55% ..."
+                parts = content.split(' / ')
+                if len(parts) >= 4:
+                    raw_champs = parts[3]
+                    # Separar por comas para tener una lista
+                    top_champs = [c.strip() for c in raw_champs.split(',')]
             
             # Si encontramos la meta tag, usamos estos datos y saltamos el resto
             json_success = True 
@@ -158,7 +167,8 @@ def player():
             "lp": lp,
             "wins": wins,
             "losses": losses,
-            "opgg_url": opgg_url
+            "opgg_url": opgg_url,
+            "top_champs": top_champs
         }
         return jsonify(response)
         

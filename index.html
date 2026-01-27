@@ -4,6 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>SoloQ Challenge</title>
+  <link rel="icon" href="img/logo.jpeg" type="image/jpeg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
@@ -43,6 +44,15 @@
       text-shadow: 0 10px 30px rgba(56, 189, 248, 0.3);
     }
 
+    .site-logo {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.5);
+    }
+
     .header-container {
       display: flex;
       align-items: center;
@@ -69,14 +79,21 @@
       -webkit-backdrop-filter: blur(12px);
       border: 1px solid var(--card-border);
       border-radius: 1.5rem;
-      padding: 1.25rem 2rem;
+      /* padding: 1.25rem 2rem;  <-- Quitamos padding global para manejarlo dentro */
       display: flex;
-      align-items: center;
-      gap: 1.5rem;
+      flex-direction: column; /* Para el desplegable */
       transition: transform 0.2s ease, box-shadow 0.2s ease;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       position: relative;
       overflow: hidden;
+    }
+
+    .card-main {
+      display: flex;
+      align-items: center;
+      gap: 1.5rem;
+      padding: 1.25rem 2rem;
+      width: 100%;
     }
 
     .card:hover {
@@ -85,6 +102,76 @@
       border-color: rgba(56, 189, 248, 0.3);
       cursor: pointer;
       background-color: rgba(30, 41, 59, 0.8);
+    }
+    
+    /* Detalles Desplegables */
+    .card-details {
+      display: none;
+      padding: 0 2rem 1.5rem 2rem;
+      border-top: 1px solid rgba(255,255,255,0.05);
+      background: rgba(0,0,0,0.2);
+      width: 100%;
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    @keyframes slideDown {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .card.expanded .card-details {
+      display: block;
+    }
+    
+    .card.expanded .expand-icon {
+      transform: rotate(180deg);
+    }
+
+    .expand-icon {
+      margin-left: auto;
+      font-size: 0.8rem;
+      color: #94a3b8;
+      transition: transform 0.3s;
+    }
+
+    .stats-title {
+      font-size: 0.9rem;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #94a3b8;
+      margin: 1rem 0 0.5rem 0;
+      font-weight: 800;
+    }
+
+    .champ-row {
+      font-size: 0.95rem;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.05);
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+    }
+    
+    .champ-row:last-child { border-bottom: none; }
+
+    .opgg-btn {
+      display: block;
+      width: 100%;
+      text-align: center;
+      margin-top: 1rem;
+      padding: 0.75rem 1rem;
+      background: rgba(56, 189, 248, 0.1);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      color: #38bdf8;
+      text-decoration: none;
+      border-radius: 0.75rem;
+      font-weight: 600;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+    }
+    .opgg-btn:hover {
+      background: #38bdf8;
+      color: #0f172a;
     }
 
     /* Rank Position */
@@ -232,6 +319,7 @@
 <body>
 
 <div class="header-container">
+  <img src="img/logo.jpeg" alt="Logo" class="site-logo">
   <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
   <button onclick="loadLeaderboard()" class="refresh-btn" title="Actualizar datos">🔄</button>
 </div>
@@ -326,31 +414,52 @@ async function loadLeaderboard() {
     const winrate = totalGames > 0 ? Math.round((p.wins / totalGames) * 100) : 0;
     const winrateColor = winrate >= 50 ? "high" : "low";
     
-    const card = document.createElement("a");
+    const card = document.createElement("div"); // Cambiado de <a> a <div>
     card.className = "card";
-    card.href = p.opgg_url || `https://www.op.gg/summoners/euw/${encodeURIComponent(p.name)}-${p.tag}`;
-    card.target = "_blank"; // Abrir en nueva pestaña
+    // Evento para expandir/contraer
+    card.onclick = function(e) {
+        if(e.target.closest('.opgg-btn')) return; // No expandir si click en botón
+        this.classList.toggle('expanded');
+    };
     card.style.animationDelay = `${index * 0.1}s`; // Stagger animation
     
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
 
+    // Construir HTML de estadísticas
+    let champsHtml = '';
+    if (p.top_champs && p.top_champs.length > 0) {
+        p.top_champs.forEach(c => {
+            champsHtml += `<div class="champ-row">🔹 ${c}</div>`;
+        });
+    } else {
+        champsHtml = '<div class="champ-row" style="font-style:italic; opacity:0.6">No hay datos recientes disponibles</div>';
+    }
+
     card.innerHTML = `
-      <div class="rank-pos ${rankClass}">#${index + 1}</div>
-      <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
-      <div class="player-info">
-        <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
-        <div class="winrate-container">
-            <div class="progress-bg">
-                <div class="progress-fill" style="width: ${winrate}%"></div>
+      <div class="card-main">
+          <div class="rank-pos ${rankClass}">#${index + 1}</div>
+          <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
+          <div class="player-info">
+            <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
+            <div class="winrate-container">
+                <div class="progress-bg">
+                    <div class="progress-fill" style="width: ${winrate}%"></div>
+                </div>
+                <span class="winrate-text ${winrateColor}">${winrate}% WR</span>
+                <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
             </div>
-            <span class="winrate-text ${winrateColor}">${winrate}% WR</span>
-            <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
-        </div>
+          </div>
+          <div class="tier-info">
+            <div class="tier-text">${p.tier} ${p.rank}</div>
+            <div class="lp-text">${p.lp} LP</div>
+          </div>
+          <div class="expand-icon">▼</div>
       </div>
-      <div class="tier-info">
-        <div class="tier-text">${p.tier} ${p.rank}</div>
-        <div class="lp-text">${p.lp} LP</div>
+      <div class="card-details">
+          <div class="stats-title">Estadísticas Recientes</div>
+          ${champsHtml}
+          <a href="${p.opgg_url || '#'}" target="_blank" class="opgg-btn">Ver perfil completo en OP.GG ↗</a>
       </div>
     `;
     leaderboard.appendChild(card);
