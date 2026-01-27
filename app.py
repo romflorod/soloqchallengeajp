@@ -97,7 +97,7 @@ def player():
                     for champ_str in raw_champs.split(','):
                         champ_str = champ_str.strip()
                         # Regex para extraer datos: Nombre - Wins - Losses - Winrate
-                        match = re.search(r'(.+?)\s*-\s*(\d+)Win\s+(\d+)Lose\s+Win\s+rate\s+(\d+)%', champ_str)
+                        match = re.search(r'(.+?)\s*-\s*(\d+)Win\s+(\d+)Lose\s+Win\s*rate\s*(\d+)%', champ_str, re.IGNORECASE)
                         if match:
                             top_champs.append({
                                 "name": match.group(1).strip(),
@@ -115,7 +115,9 @@ def player():
             text_content = soup.get_text()
             
             # Buscar KDA Ratio (Ej: 3.45:1)
-            kda_match = re.search(r"(\d+\.\d+):1", text_content)
+            kda_match = re.search(r"KDA\s*(\d+\.\d+):1", text_content, re.IGNORECASE)
+            if not kda_match: # Intento alternativo sin la palabra KDA delante
+                kda_match = re.search(r"(\d+\.\d+):1", text_content)
             if kda_match:
                 kda = kda_match.group(1)
                 

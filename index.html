@@ -313,6 +313,17 @@
     }
     .card:hover .otp-img { border-color: #38bdf8; transform: scale(1.1); }
     .otp-label { font-size: 0.7rem; color: #64748b; margin-top: 4px; font-weight: 700; letter-spacing: 0.05em; }
+    .otp-label.is-otp { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.5); }
+    
+    .otp-badge-text {
+        font-size: 0.6rem;
+        padding: 2px 4px;
+        border-radius: 4px;
+        margin-top: 2px;
+        font-weight: 800;
+    }
+    .otp-badge-text.otp { background: rgba(251, 191, 36, 0.2); color: #fbbf24; border: 1px solid rgba(251, 191, 36, 0.3); }
+    .otp-badge-text.main { background: rgba(56, 189, 248, 0.2); color: #38bdf8; border: 1px solid rgba(56, 189, 248, 0.3); }
 
     /* KDA & Streak Section */
     .stats-column {
@@ -535,6 +546,15 @@ async function loadLeaderboard() {
     // Detectar OTP (Campeón más jugado)
     const mainChamp = (p.top_champs && p.top_champs.length > 0) ? p.top_champs[0] : null;
     const otpImage = mainChamp ? getChampImage(mainChamp.name) : '';
+    
+    // Calcular OTP Tier
+    let otpLabel = "MAIN";
+    let otpClass = "main";
+    if (mainChamp && totalGames > 0) {
+        const champGames = mainChamp.wins + mainChamp.losses;
+        const playRate = champGames / totalGames;
+        if (playRate >= 0.7) { otpLabel = "OTP"; otpClass = "otp"; }
+    }
 
     // KDA Logic
     let kdaHtml = '';
@@ -594,7 +614,7 @@ async function loadLeaderboard() {
           ${mainChamp ? `
           <div class="otp-section">
             <img src="${otpImage}" class="otp-img" title="Main: ${mainChamp.name}">
-            <div class="otp-label">MAIN</div>
+            <div class="otp-badge-text ${otpClass}">${otpLabel}</div>
           </div>` : ''}
 
           <div class="tier-info">
