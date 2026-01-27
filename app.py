@@ -239,13 +239,13 @@ def player():
             if level_tag:
                 level = level_tag.get_text().strip()
             else:
-                # Fallback regex: "Level 123", "Lvl 123", "Level123"
-                level_match = re.search(r"(?:Level|Lvl)\.?\s*(\d+)", text_content, re.IGNORECASE)
+                # Fallback regex: "Level 123", "Lvl 123", "My Page 123" (Visto en debug)
+                level_match = re.search(r"(?:Level|Lvl|My Page)\.?\s*(\d+)", text_content, re.IGNORECASE)
                 if level_match:
                     level = level_match.group(1)
             
             # --- MASTERY ---
-            # Ej: "Mastery 34 Malzahar 342,114 pts"
+            # Ej: "Mastery 34 Malzahar 342,114 pts" (El separador de espacio es clave aquí)
             mastery_match = re.search(r"Mastery\s*\d+\s*(.+?)\s*([\d,]+)\s*pts", text_content)
             if mastery_match:
                 mastery = {
@@ -267,8 +267,8 @@ def player():
 
             # --- KDA ---
             # Regex más flexible: "3.45:1", "3:1", "3.45 : 1"
-            # Buscamos el patrón X:1 que es muy característico del KDA
-            kda_match = re.search(r"([\d\.]+)\s*:\s*1", text_content)
+            # Buscamos el patrón X:1 o "KDA 3.45"
+            kda_match = re.search(r"(?:KDA)?\s*([\d\.]+)\s*:\s*1", text_content, re.IGNORECASE)
             if kda_match:
                 kda = kda_match.group(1)
                 
