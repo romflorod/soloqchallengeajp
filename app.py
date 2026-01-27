@@ -6,11 +6,6 @@ import os
 app = Flask(__name__)
 CORS(app)
 
-@app.route('/')
-def index():
-    with open('index.html', 'r', encoding='utf-8') as f:
-        return f.read()
-
 @app.route('/api/player', methods=['GET'])
 def player():
     try:
@@ -105,7 +100,10 @@ def player():
         
     except Exception as err:
         print(f"[API] Error: {err}")
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(err)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
+
