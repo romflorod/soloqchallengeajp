@@ -30,12 +30,18 @@ async function loadLeaderboard() {
 
   for (const p of players) {
     try {
-      const res = await fetch(
-        `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`
-      );
+      const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
+      console.log(`[Frontend] Fetching: ${url}`);
+      
+      const res = await fetch(url);
+      console.log(`[Frontend] Response status: ${res.status}`);
+      
       const data = await res.json();
+      console.log(`[Frontend] Response data:`, data);
+      
       results.push(data);
     } catch (err) {
+      console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
       results.push({
         name: p.summonerName,
         tag: p.tag,

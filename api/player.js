@@ -4,15 +4,21 @@ export default async function handler(req, res) {
   try {
     const { name, tag } = req.query;
 
+    console.log(`[API] Request: name=${name}, tag=${tag}`);
+
     if (!name || !tag) {
+      console.log("[API] Missing name or tag");
       return res.status(400).json({ error: "Missing name or tag" });
     }
 
     const RIOT_API_KEY = process.env.RIOT_API_KEY;
 
     if (!RIOT_API_KEY) {
+      console.log("[API] RIOT_API_KEY not configured");
       return res.status(500).json({ error: "RIOT_API_KEY not configured" });
     }
+
+    console.log("[API] API Key found, requesting account data...");
 
     // 1) Obtener PUUID
     const accountRes = await fetch(
@@ -24,12 +30,17 @@ export default async function handler(req, res) {
       }
     );
 
+    console.log(`[API] Account Response Status: ${accountRes.status}`);
+
     if (!accountRes.ok) {
+      const errorData = await accountRes.text();
+      console.log(`[API] Account API Error: ${errorData}`);
       return res.status(404).json({ error: "Summoner not found" });
     }
 
     const accountData = await accountRes.json();
     const puuid = accountData.puuid;
+    console.log(`[API] PUUID obtained: ${puuid}`);
 
     // 2) Obtener summoner info
     const summonerRes = await fetch(
@@ -39,11 +50,16 @@ export default async function handler(req, res) {
       }
     );
 
+    console.log(`[API] Summoner Response Status: ${summonerRes.status}`);
+
     if (!summonerRes.ok) {
+      const errorData = await summonerRes.text();
+      console.log(`[API] Summoner API Error: ${errorData}`);
       return res.status(404).json({ error: "Summoner info not found" });
     }
 
     const summonerData = await summonerRes.json();
+    console.log(`[API] Summoner data obtained for ID: ${summonerData.id}`);
 
     // 3) Ranked
     const rankedRes = await fetch(
@@ -53,7 +69,11 @@ export default async function handler(req, res) {
       }
     );
 
+    console.log(`[API] Ranked Response Status: ${rankedRes.status}`);
+
     if (!rankedRes.ok) {
+      const errorData = await rankedRes.text();
+      console.log(`[API] Ranked API Error: ${errorData}`);
       return res.status(404).json({ error: "Ranked info not found" });
     }
 
@@ -62,8 +82,10 @@ export default async function handler(req, res) {
       (q) => q.queueType === "RANKED_SOLO_5x5"
     );
 
+    console.log(`[API] SoloQ found: ${soloQ ? "Yes" : "No"}`);
+
     if (!soloQ) {
-      return res.json({
+      const response = {
         name,
         tag,
         tier: "UNRANKED",
@@ -71,10 +93,12 @@ export default async function handler(req, res) {
         lp: 0,
         wins: 0,
         losses: 0
-      });
+      };
+      console.log("[API] Returning UNRANKED response:", response);
+      return res.json(response);
     }
 
-    return res.json({
+    const response = {
       name,
       tag,
       tier: soloQ.tier,
@@ -82,10 +106,12 @@ export default async function handler(req, res) {
       lp: soloQ.leaguePoints,
       wins: soloQ.wins,
       losses: soloQ.losses
-    });
+    };
+    console.log("[API] Returning ranked response:", response);
+    return res.json(response);
 
   } catch (err) {
-    console.error(err);
-    return res.status(500).json({ error: "Internal server error" });
+    console.error("[API] Error:", err);
+    return res.status(500).json({ error: "Internal server error", details: err.message });
   }
 }
