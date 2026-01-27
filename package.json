@@ -5,10 +5,11 @@
   "scripts": {
     "build": "echo 'Build complete'",
     "start": "node api/player.js",
-    "dev": "node server.js"
+    "dev": "node --loader dotenv/config api/player.js"
   },
   "dependencies": {
     "node-fetch": "^3.3.2",
     "dotenv": "^16.0.3"
   }
 }
+ 
