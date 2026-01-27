@@ -2,68 +2,234 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <title>Leaderboard LoL</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SoloQ Challenge</title>
   <style>
-    body { font-family: Arial, sans-serif; background: #0f172a; color: #e5e7eb; }
-    .card { background: #1e293b; padding: 16px; margin: 10px; border-radius: 10px; width: 220px; }
-    .tier { font-weight: bold; }
+    /* Reset & Base */
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      background-color: #0f172a; /* Slate 900 */
+      color: #f8fafc; /* Slate 50 */
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      background: linear-gradient(to right, #38bdf8, #818cf8);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+    }
+
+    /* Leaderboard Container */
+    #leaderboard {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    /* Card Styles */
+    .card {
+      background-color: #1e293b; /* Slate 800 */
+      border: 1px solid #334155; /* Slate 700 */
+      border-radius: 1rem;
+      padding: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      transition: transform 0.2s ease, box-shadow 0.2s ease;
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+    }
+
+    .card:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+      border-color: #64748b;
+    }
+
+    /* Rank Position */
+    .rank-pos {
+      font-size: 2rem;
+      font-weight: 800;
+      color: #475569; /* Slate 600 */
+      width: 3rem;
+      text-align: center;
+      margin-right: 1rem;
+    }
+    .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 10px rgba(251, 191, 36, 0.3); } /* Gold */
+    .rank-pos.top-2 { color: #94a3b8; text-shadow: 0 0 10px rgba(148, 163, 184, 0.3); } /* Silver */
+    .rank-pos.top-3 { color: #b45309; text-shadow: 0 0 10px rgba(180, 83, 9, 0.3); } /* Bronze */
+
+    /* Player Info */
+    .player-info {
+      flex: 1;
+    }
+
+    .summoner-name {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 0.25rem;
+    }
+    .summoner-tag {
+      color: #94a3b8;
+      font-weight: 400;
+      font-size: 1rem;
+    }
+
+    /* Tier Info */
+    .tier-info {
+      text-align: right;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+    }
+
+    .tier-text {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #38bdf8; /* Sky 400 */
+      text-transform: uppercase;
+    }
+
+    .lp-text {
+      font-size: 0.9rem;
+      color: #cbd5e1;
+      margin-bottom: 0.25rem;
+    }
+
+    .winrate {
+      font-size: 0.85rem;
+      color: #94a3b8;
+      background: #0f172a;
+      padding: 0.25rem 0.5rem;
+      border-radius: 0.5rem;
+    }
+    
+    .winrate span.high { color: #4ade80; }
+    .winrate span.low { color: #f87171; }
+
+    /* Loading State */
+    .loading {
+      text-align: center;
+      color: #94a3b8;
+      font-style: italic;
+      padding: 2rem;
+    }
   </style>
 </head>
 <body>
 
-<h1>Leaderboard</h1>
-<div id="leaderboard"></div>
+<h1>🏆 SoloQ Challenge 🏆</h1>
+<div id="leaderboard">
+  <div class="loading">Cargando datos de la grieta...</div>
+</div>
 
 <script>
 const players = [
+  { summonerName: "Sapo Vazquez", tag: "C4NC3" },
+  { summonerName: "Gora Espanya66", tag: "PTSD" },
   { summonerName: "CriticalBilbo", tag: "SVQ" },
-  { summonerName: "AnotherName", tag: "EUW" }
+  { summonerName: "TOP ELO MISSION", tag: "MMH" },
+  { summonerName: "Vivan los MONOS", tag: "EUW" }
 ];
 
+// Cambia esto a "/api/player" cuando subas a Vercel
 const API_BASE = "/api/player";
+
+const tierValues = {
+  "CHALLENGER": 90, "GRANDMASTER": 80, "MASTER": 70,
+  "DIAMOND": 60, "EMERALD": 50, "PLATINUM": 40,
+  "GOLD": 30, "SILVER": 20, "BRONZE": 10, "IRON": 0,
+  "UNRANKED": -10
+};
+
+function getRankValue(rankStr) {
+    if (!rankStr) return 0;
+    const map = { "I": 1, "II": 2, "III": 3, "IV": 4, "1": 1, "2": 2, "3": 3, "4": 4 };
+    return map[rankStr.toString().toUpperCase()] || 0;
+}
+
+function calculateScore(p) {
+    let score = (tierValues[p.tier.toUpperCase()] || -10) * 1000;
+    const r = getRankValue(p.rank);
+    if (r > 0) {
+        score += (5 - r) * 100;
+    }
+    score += p.lp;
+    return score;
+}
 
 async function loadLeaderboard() {
   const leaderboard = document.getElementById("leaderboard");
-  leaderboard.innerHTML = "Cargando...";
+  // leaderboard.innerHTML = '<div class="loading">Cargando datos...</div>'; // Ya está en el HTML inicial
 
   const results = [];
 
-  for (const p of players) {
+  // Fetch all players in parallel
+  const promises = players.map(async (p) => {
     try {
       const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
-      console.log(`[Frontend] Fetching: ${url}`);
-      
       const res = await fetch(url);
-      console.log(`[Frontend] Response status: ${res.status}`);
-      
+      if (!res.ok) throw new Error("Error fetching");
       const data = await res.json();
-      console.log(`[Frontend] Response data:`, data);
-      
-      results.push(data);
+      return data;
     } catch (err) {
       console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
-      results.push({
+      return {
         name: p.summonerName,
         tag: p.tag,
-        tier: "ERROR",
+        tier: "UNRANKED",
         rank: "",
         lp: 0,
         wins: 0,
-        losses: 0
-      });
+        losses: 0,
+        error: true
+      };
     }
-  }
+  });
+
+  const fetchedData = await Promise.all(promises);
+
+  // Sort by Score
+  fetchedData.sort((a, b) => calculateScore(b) - calculateScore(a));
 
   leaderboard.innerHTML = "";
 
-  results.forEach(p => {
+  fetchedData.forEach((p, index) => {
+    const totalGames = p.wins + p.losses;
+    const winrate = totalGames > 0 ? Math.round((p.wins / totalGames) * 100) : 0;
+    const winrateColor = winrate >= 50 ? "high" : "low";
+    
     const div = document.createElement("div");
     div.className = "card";
+    
+    // Determine rank class for styling top 3
+    const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
+
     div.innerHTML = `
-      <div class="tier">${p.name}#${p.tag}</div>
-      <div>${p.tier} ${p.rank}</div>
-      <div>${p.lp} LP</div>
-      <div>${p.wins}W / ${p.losses}L</div>
+      <div class="rank-pos ${rankClass}">#${index + 1}</div>
+      <div class="player-info">
+        <div class="summoner-name">${p.name} <span class="summoner-tag">#${p.tag}</span></div>
+        <div class="winrate">
+            ${p.wins}W ${p.losses}L 
+            (<span class="${winrateColor}">${winrate}%</span> WR)
+        </div>
+      </div>
+      <div class="tier-info">
+        <div class="tier-text">${p.tier} ${p.rank}</div>
+        <div class="lp-text">${p.lp} LP</div>
+      </div>
     `;
     leaderboard.appendChild(div);
   });

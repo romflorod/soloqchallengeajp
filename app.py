@@ -2,6 +2,10 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import os
+from bs4 import BeautifulSoup
+import json
+import urllib.parse
+import re
 
 app = Flask(__name__)
 CORS(app)
@@ -15,95 +19,153 @@ def player():
         print(f"[API] Request: name={name}, tag={tag}")
         
         if not name or not tag:
-            print("[API] Missing name or tag")
             return jsonify({"error": "Missing name or tag"}), 400
         
-        riot_api_key = os.environ.get('RIOT_API_KEY')
+        # Construir URL de op.gg (Asumimos EUW por defecto)
+        # Formato: https://www.op.gg/summoners/euw/Nombre-Tag
+        encoded_name = urllib.parse.quote(name)
+        opgg_url = f"https://www.op.gg/summoners/euw/{encoded_name}-{tag}"
         
-        if not riot_api_key:
-            print("[API] RIOT_API_KEY not configured")
-            return jsonify({"error": "RIOT_API_KEY not configured"}), 500
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+            "Accept-Language": "en-US,en;q=0.9",
+            "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+            "Referer": "https://www.op.gg/",
+            "Connection": "keep-alive"
+        }
         
-        print("[API] API Key found, requesting account data...")
-        headers = {"X-Riot-Token": riot_api_key}
+        print(f"[Scraper] Fetching: {opgg_url}")
+        res = requests.get(opgg_url, headers=headers)
         
-        # 1) Get PUUID
-        account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
-        account_res = requests.get(account_url, headers=headers)
+        if res.status_code != 200:
+            print(f"[Scraper] Failed to fetch op.gg: {res.status_code}")
+            return jsonify({"error": "Failed to fetch data from op.gg"}), 502
+
+        soup = BeautifulSoup(res.text, 'html.parser')
         
-        print(f"[API] Account Response Status: {account_res.status_code}")
+        # Inicializar datos por defecto
+        tier = "UNRANKED"
+        rank = ""
+        lp = 0
+        wins = 0
+        losses = 0
         
-        if not account_res.ok:
-            error_data = account_res.text
-            print(f"[API] Account API Error: {error_data}")
-            return jsonify({"error": "Summoner not found"}), 404
+        # DEBUG: Imprimir título para ver si es Cloudflare o error 404
+        if soup.title:
+            print(f"[Scraper] Page Title: {soup.title.string}")
         
-        account_data = account_res.json()
-        puuid = account_data.get('puuid')
-        print(f"[API] PUUID obtained: {puuid}")
+        # 0. Intentar leer Meta Description (Nuevo método más robusto)
+        # Formato: "Name#Tag / Tier Rank LP / WinsWin LossesLose ..."
+        meta_desc = soup.find("meta", {"name": "description"})
+        if meta_desc:
+            content = meta_desc.get("content", "")
+            print(f"[Scraper] Found Meta Description: {content}")
+            
+            if "Unranked" in content:
+                tier = "UNRANKED"
+            else:
+                # Extraer Tier y Rank (Ej: Platinum 2)
+                tier_match = re.search(r'(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond|Master|Grandmaster|Challenger)\s*(\d)?', content, re.IGNORECASE)
+                if tier_match:
+                    tier = tier_match.group(1).upper()
+                    rank = tier_match.group(2) if tier_match.group(2) else ""
+                
+                # Extraer LP (Ej: 50LP)
+                lp_match = re.search(r'(\d+)\s*LP', content)
+                if lp_match:
+                    lp = int(lp_match.group(1))
+                
+                # Extraer Wins/Losses (Ej: 5Win 5Lose)
+                wl_match = re.search(r'(\d+)Win\s+(\d+)Lose', content)
+                if wl_match:
+                    wins = int(wl_match.group(1))
+                    losses = int(wl_match.group(2))
+            
+            # Si encontramos la meta tag, usamos estos datos y saltamos el resto
+            json_success = True 
+
+        # 1. Intentar leer JSON (__NEXT_DATA__) - Método secundario
+        next_data_tag = soup.find('script', id='__NEXT_DATA__')
+        # Solo intentamos JSON si no hemos sacado datos del meta description
+        if next_data_tag and tier == "UNRANKED" and wins == 0:
         
-        # 2) Get summoner info
-        summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-        summoner_res = requests.get(summoner_url, headers=headers)
-        
-        print(f"[API] Summoner Response Status: {summoner_res.status_code}")
-        
-        if not summoner_res.ok:
-            error_data = summoner_res.text
-            print(f"[API] Summoner API Error: {error_data}")
-            return jsonify({"error": "Summoner info not found"}), 404
-        
-        summoner_data = summoner_res.json()
-        summoner_id = summoner_data.get('id')
-        print(f"[API] Summoner data obtained for ID: {summoner_id}")
-        
-        # 3) Get ranked info
-        ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
-        ranked_res = requests.get(ranked_url, headers=headers)
-        
-        print(f"[API] Ranked Response Status: {ranked_res.status_code}")
-        
-        if not ranked_res.ok:
-            error_data = ranked_res.text
-            print(f"[API] Ranked API Error: {error_data}")
-            return jsonify({"error": "Ranked info not found"}), 404
-        
-        ranked_data = ranked_res.json()
-        solo_q = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
-        
-        print(f"[API] SoloQ found: {solo_q is not None}")
-        
-        if not solo_q:
-            response = {
-                "name": name,
-                "tag": tag,
-                "tier": "UNRANKED",
-                "rank": "",
-                "lp": 0,
-                "wins": 0,
-                "losses": 0
-            }
-            print(f"[API] Returning UNRANKED response: {response}")
-            return jsonify(response)
-        
+            try:
+                data = json.loads(next_data_tag.string)
+                league_stats = data['props']['pageProps']['data']['league_stats']
+                solo_q = next((q for q in league_stats if q.get('queue_info', {}).get('id') == 420), None)
+                
+                if solo_q:
+                    tier_info = solo_q.get('tier_info', {})
+                    tier = tier_info.get('tier', 'UNRANKED')
+                    rank = tier_info.get('division', '')
+                    lp = tier_info.get('lp', 0)
+                    wins = solo_q.get('win', 0)
+                    losses = solo_q.get('lose', 0)
+                json_success = True
+            except Exception as e:
+                print(f"[Scraper] JSON parsing error: {e}")
+
+        # 2. Si falla JSON, intentar HTML Parsing (Fallback) - Método visual
+        if not json_success:
+            print("[Scraper] JSON failed or missing. Trying HTML fallback...")
+            
+            # Buscar texto "Ranked Solo" en el HTML
+            ranked_header = soup.find(string=re.compile("Ranked Solo"))
+            
+            if ranked_header:
+                # Buscar contenedor padre que tenga información de LP o Unranked
+                container = ranked_header.parent
+                found_container = None
+                # Subir niveles hasta encontrar el contenedor con los datos
+                for _ in range(6): 
+                    if container and ("LP" in container.get_text() or "Unranked" in container.get_text()):
+                        found_container = container
+                        break
+                    container = container.parent
+                
+                if found_container:
+                    text = found_container.get_text()
+                    # Limpiar espacios extra para facilitar regex
+                    text = " ".join(text.split())
+                    
+                    if "Unranked" in text:
+                        tier = "UNRANKED"
+                    else:
+                        # Regex para Tier y Rank (Ej: Gold 4, Emerald 2, Master)
+                        tier_match = re.search(r'(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond|Master|Grandmaster|Challenger)\s*(\d)?', text, re.IGNORECASE)
+                        if tier_match:
+                            tier = tier_match.group(1).upper()
+                            rank = tier_match.group(2) if tier_match.group(2) else ""
+                        
+                        # Regex para LP (Ej: 23 LP)
+                        lp_match = re.search(r'(\d+)\s*LP', text)
+                        if lp_match:
+                            lp = int(lp_match.group(1))
+                            
+                        # Regex para Wins/Losses (Ej: 20W 15L)
+                        wl_match = re.search(r'(\d+)W\s+(\d+)L', text)
+                        if wl_match:
+                            wins = int(wl_match.group(1))
+                            losses = int(wl_match.group(2))
+            else:
+                print("[Scraper] 'Ranked Solo' header not found.")
+
         response = {
             "name": name,
             "tag": tag,
-            "tier": solo_q.get('tier'),
-            "rank": solo_q.get('rank'),
-            "lp": solo_q.get('leaguePoints', 0),
-            "wins": solo_q.get('wins', 0),
-            "losses": solo_q.get('losses', 0)
+            "tier": tier,
+            "rank": rank,
+            "lp": lp,
+            "wins": wins,
+            "losses": losses
         }
-        print(f"[API] Returning ranked response: {response}")
         return jsonify(response)
         
     except Exception as err:
-        print(f"[API] Error: {err}")
         import traceback
+        print(f"[API] An unexpected error occurred: {err}")
         traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(err)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
-
