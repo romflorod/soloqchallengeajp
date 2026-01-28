@@ -66,7 +66,7 @@ def fetch_mcp_matches(name, tag):
             "arguments": {
                 "region": "euw",
                 "game_name": name,
-                "tagline": tag
+                "tag_line": tag
             }
         },
         "id": 1
@@ -79,8 +79,8 @@ def fetch_mcp_matches(name, tag):
                 for content in json_resp['result']['content']:
                     if content['type'] == 'text':
                         return json.loads(content['text'])
-    except Exception:
-        pass
+    except Exception as e:
+        print(f"[MCP] Error fetching matches: {e}")
     return None
 
 @app.route('/api/player', methods=['GET'])
@@ -334,6 +334,15 @@ def player():
             ladder_match = re.search(r"Ladder Rank\s*([\d,]+)", text_content, re.IGNORECASE)
             if ladder_match:
                 ladder_rank = ladder_match.group(1)
+                
+            # --- SUMMARY STATS (Regex Fallback) ---
+            # Si no tenemos rango, buscamos el patrón "Ranked Solo/Duo emerald 4 13 LP"
+            if tier == "UNRANKED":
+                summary_match = re.search(r"Ranked Solo/Duo\s+(Iron|Bronze|Silver|Gold|Platinum|Emerald|Diamond|Master|Grandmaster|Challenger)\s+(\d+)\s+(\d+)\s*LP", text_content, re.IGNORECASE)
+                if summary_match:
+                    tier = summary_match.group(1).upper()
+                    rank = summary_match.group(2)
+                    lp = int(summary_match.group(3))
         except Exception as e:
             print(f"[Scraper] Error extracting KDA/Streak: {e}")
 
@@ -402,6 +411,30 @@ def player():
                             losses = int(wl_match.group(2))
             else:
                 print("[Scraper] 'Ranked Solo' header not found.")
+
+        # --- RECENT GAMES (Text Fallback) ---
+        # Si no tenemos partidas, buscamos en el texto plano: "Ranked Solo/Duo ... Victory"
+        if not recent_games:
+             matches_text = re.findall(r"Ranked Solo/Duo\s+(?:[\w\s]+?ago\s+)?(Victory|Defeat|Remake)", text_content, re.IGNORECASE)
+             for m in matches_text:
+                result = m.upper()
+                if "VICTORY" in result:
+                    recent_games.append("W")
+                elif "DEFEAT" in result:
+                    recent_games.append("L")
+             recent_games = recent_games[:10]
+
+        # Intentar obtener historial de partidas via MCP (incluso si usamos scraper)
+        if not recent_games:
+            try:
+                matches_data = fetch_mcp_matches(name, tag)
+                if matches_data and 'data' in matches_data:
+                    m_list = matches_data['data'] if isinstance(matches_data['data'], list) else matches_data['data'].get('matches', [])
+                    for m in m_list[:10]:
+                        if 'win' in m:
+                            recent_games.append("W" if m['win'] else "L")
+            except Exception as e:
+                print(f"[Scraper] Error fetching matches via MCP: {e}")
 
         response = {
             "name": name,
