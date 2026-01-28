@@ -763,7 +763,7 @@ async function loadLeaderboard() {
             <div style="text-align:center; min-width:60px;">
                 <img src="${getChampImage(champName)}" style="width:34px; height:34px; border-radius:50%; border:2px solid #fbbf24; padding:1px;" title="${champName}">
                 <div style="font-size:0.7rem; color:#fbbf24; font-weight:bold; margin-top:2px;">Lvl ${m.level}</div>
-                <div style="font-size:0.65rem; color:#94a3b8;">${parseInt(m.points.replace(/,/g,'')).toLocaleString()}</div>
+                <div style="font-size:0.65rem; color:#94a3b8;">${(m.points || 0).toLocaleString()}</div>
             </div>`;
         });
         masteryHtml += `</div>`;
