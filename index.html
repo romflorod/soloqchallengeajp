@@ -739,6 +739,8 @@ async function loadLeaderboard() {
   leaderboard.innerHTML = "";
 
   fetchedData.forEach((p, index) => {
+    try {
+
     const totalGames = p.wins + p.losses;
     const winrate = totalGames > 0 ? Math.round((p.wins / totalGames) * 100) : 0;
     const winrateColor = winrate >= 50 ? "high" : "low";
@@ -851,13 +853,15 @@ async function loadLeaderboard() {
         
         // Items
         let itemsHtml = '<div class="lm-items">';
-        lm.items.forEach(item => {
-            if(item > 0) {
-                itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/14.2.1/img/item/${item}.png" class="lm-item-img" title="Item ${item}">`;
-            } else {
-                itemsHtml += `<div class="lm-item-empty"></div>`;
-            }
-        });
+        if (lm.items && Array.isArray(lm.items)) {
+            lm.items.forEach(item => {
+                if(item > 0) {
+                    itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/14.2.1/img/item/${item}.png" class="lm-item-img" title="Item ${item}">`;
+                } else {
+                    itemsHtml += `<div class="lm-item-empty"></div>`;
+                }
+            });
+        }
         itemsHtml += '</div>';
 
         lastMatchHtml = `
@@ -942,6 +946,10 @@ async function loadLeaderboard() {
       </div>
     `;
     leaderboard.appendChild(card);
+
+    } catch (renderErr) {
+        console.error("Error rendering card for", p.name, renderErr);
+    }
   });
 }
 
