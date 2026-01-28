@@ -1,6 +1,6 @@
 import os
 import requests
-from urllib.parse import urlencode
+import urllib.parse
 
 def handler(req):
     """Handler for Vercel serverless functions"""
@@ -8,93 +8,139 @@ def handler(req):
         # Get query parameters
         name = req.args.get('name')
         tag = req.args.get('tag')
-        
+
         print(f"[API] Request: name={name}, tag={tag}")
-        
+
         if not name or not tag:
             print("[API] Missing name or tag")
             return {"error": "Missing name or tag"}, 400
-        
-        riot_api_key = os.environ.get('RIOT_API_KEY')
-        
-        if not riot_api_key:
+
+        api_key = os.environ.get('RIOT_API_KEY')
+
+        if not api_key:
             print("[API] RIOT_API_KEY not configured")
             return {"error": "RIOT_API_KEY not configured"}, 500
-        
+
         print("[API] API Key found, requesting account data...")
-        headers = {"X-Riot-Token": riot_api_key}
-        
-        # 1) Get PUUID
+        headers = {"X-Riot-Token": api_key}
+
+        # 1. Get PUUID
         account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
         account_res = requests.get(account_url, headers=headers)
-        
+
         print(f"[API] Account Response Status: {account_res.status_code}")
-        
+
         if not account_res.ok:
             error_data = account_res.text
             print(f"[API] Account API Error: {error_data}")
-            return {"error": "Summoner not found"}, 404
-        
-        account_data = account_res.json()
-        puuid = account_data.get('puuid')
+            return {"error": "Riot Account not found"}, 404
+
+        puuid = account_res.json().get('puuid')
         print(f"[API] PUUID obtained: {puuid}")
-        
-        # 2) Get summoner info
+
+        # 2. Get Summoner data (level)
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         summoner_res = requests.get(summoner_url, headers=headers)
-        
-        print(f"[API] Summoner Response Status: {summoner_res.status_code}")
-        
-        if not summoner_res.ok:
-            error_data = summoner_res.text
-            print(f"[API] Summoner API Error: {error_data}")
-            return {"error": "Summoner info not found"}, 404
-        
-        summoner_data = summoner_res.json()
-        summoner_id = summoner_data.get('id')
-        print(f"[API] Summoner data obtained for ID: {summoner_id}")
-        
-        # 3) Get ranked info
-        ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-summoner/{summoner_id}"
+        summoner_data = summoner_res.json() if summoner_res.ok else {}
+        level = summoner_data.get('summonerLevel')
+
+        # 3. Get Ranked data
+        ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         ranked_res = requests.get(ranked_url, headers=headers)
-        
-        print(f"[API] Ranked Response Status: {ranked_res.status_code}")
-        
-        if not ranked_res.ok:
-            error_data = ranked_res.text
-            print(f"[API] Ranked API Error: {error_data}")
-            return {"error": "Ranked info not found"}, 404
-        
-        ranked_data = ranked_res.json()
-        solo_q = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
-        
-        print(f"[API] SoloQ found: {solo_q is not None}")
-        
-        if not solo_q:
-            response = {
-                "name": name,
-                "tag": tag,
-                "tier": "UNRANKED",
-                "rank": "",
-                "lp": 0,
-                "wins": 0,
-                "losses": 0
-            }
-            print(f"[API] Returning UNRANKED response: {response}")
-            return response, 200
-        
+        ranked_data = ranked_res.json() if ranked_res.ok else []
+        solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
+
+        # 4. Get Match History
+        recent_games = []
+        total_kills = 0
+        total_deaths = 0
+        total_assists = 0
+        champ_stats = {}
+
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&count=10"
+        match_ids_res = requests.get(match_ids_url, headers=headers)
+        match_ids = match_ids_res.json() if match_ids_res.ok else []
+
+        for match_id in match_ids:
+            match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
+            match_res = requests.get(match_url, headers=headers)
+            if match_res.ok:
+                match_data = match_res.json()
+                info = match_data.get('info', {})
+                participants = info.get('participants', [])
+                player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
+                if player_stats:
+                    win = player_stats.get('win')
+                    recent_games.append("W" if win else "L")
+                    k = player_stats.get('kills', 0)
+                    d = player_stats.get('deaths', 0)
+                    a = player_stats.get('assists', 0)
+                    total_kills += k
+                    total_deaths += d
+                    total_assists += a
+                    c_name = player_stats.get('championName')
+                    if c_name not in champ_stats:
+                        champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
+                    champ_stats[c_name]['count'] += 1
+                    if win:
+                        champ_stats[c_name]['wins'] += 1
+                    else:
+                        champ_stats[c_name]['losses'] += 1
+
+        # --- CALCULATE STATS ---
+        streak = None
+        if recent_games:
+            current_streak_type = recent_games[0]
+            current_streak_count = 0
+            for result in recent_games:
+                if result == current_streak_type:
+                    current_streak_count += 1
+                else:
+                    break
+            if current_streak_count >= 3:
+                streak = f"{current_streak_count} {'Win' if current_streak_type == 'W' else 'Loss'} Streak"
+
+        kda, avg_k, avg_d, avg_a = None, None, None, None
+        if recent_games:
+            games_count = len(recent_games)
+            avg_k = round(total_kills / games_count, 1)
+            avg_d = round(total_deaths / games_count, 1)
+            avg_a = round(total_assists / games_count, 1)
+            kda = round((total_kills + total_assists) / total_deaths, 2) if total_deaths > 0 else round(total_kills + total_assists, 2)
+
+        top_champs = []
+        sorted_champs = sorted(champ_stats.items(), key=lambda item: item[1]['count'], reverse=True)
+        for champ_name, stats in sorted_champs[:3]:
+            winrate = int((stats['wins'] / stats['count']) * 100)
+            top_champs.append({"name": champ_name, "wins": stats['wins'], "losses": stats['losses'], "winrate": winrate})
+
+        if not solo_q_data:
+            return {
+                "name": name, "tag": tag, "tier": "UNRANKED", "rank": "", "lp": 0,
+                "wins": 0, "losses": 0, "level": level, "recent_games": recent_games,
+                "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+                "top_champs": top_champs,
+                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+            }, 200
+
         response = {
             "name": name,
             "tag": tag,
-            "tier": solo_q.get('tier'),
-            "rank": solo_q.get('rank'),
-            "lp": solo_q.get('leaguePoints', 0),
-            "wins": solo_q.get('wins', 0),
-            "losses": solo_q.get('losses', 0)
+            "tier": solo_q_data.get('tier'),
+            "rank": solo_q_data.get('rank'),
+            "lp": solo_q_data.get('leaguePoints', 0),
+            "wins": solo_q_data.get('wins', 0),
+            "losses": solo_q_data.get('losses', 0),
+            "level": level,
+            "recent_games": recent_games,
+            "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+            "top_champs": top_champs,
+            "ladder_rank": None, "ranked_flex": None, "mastery": None, "masteries": [],
+            "past_rank": None, "past_ranks": [],
+            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
         }
-        print(f"[API] Returning ranked response: {response}")
         return response, 200
-        
+
     except Exception as err:
         print(f"[API] Error: {err}")
         return {"error": "Internal server error", "details": str(err)}, 500
