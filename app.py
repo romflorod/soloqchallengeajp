@@ -60,6 +60,7 @@ def player():
             print("[API] CRITICAL: RIOT_API_KEY environment variable not found.")
             return jsonify({"error": "Server is not configured with a RIOT_API_KEY."}), 500
         
+        api_key = api_key.strip() # Eliminar espacios en blanco o saltos de línea
         print(f"[API] Found RIOT_API_KEY: {api_key[:10]}...")  # Log primeros 10 chars
         headers = {"X-Riot-Token": api_key}
 
