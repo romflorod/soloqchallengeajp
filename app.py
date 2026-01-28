@@ -53,22 +53,28 @@ def player():
         headers = {"X-Riot-Token": api_key}
 
         # 1. Get PUUID
-        account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
-        account_res = requests.get(account_url, headers=headers)
-        if not account_res.ok:
-            print(f"[API] Riot Account not found: {account_res.status_code}")
-            return jsonify({"error": "Riot Account not found"}), 404
-        puuid = account_res.json().get('puuid')
+        try:
+            account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
+            account_res = requests.get(account_url, headers=headers, timeout=10)
+            account_res.raise_for_status() # Lanza un error para status 4xx/5xx
+            puuid = account_res.json().get('puuid')
+        except requests.exceptions.HTTPError as e:
+            if e.response.status_code == 404:
+                print(f"[API] Riot Account not found for {name}#{tag}")
+                return jsonify({"error": f"Riot Account not found for {name}#{tag}"}), 404
+            else:
+                print(f"[API] HTTP Error on account fetch: {e}")
+                return jsonify({"error": "Failed to fetch account data from Riot API", "details": str(e)}), 502 # Bad Gateway
 
         # 2. Get Summoner data (level)
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-        summoner_res = requests.get(summoner_url, headers=headers)
+        summoner_res = requests.get(summoner_url, headers=headers, timeout=10)
         summoner_data = summoner_res.json() if summoner_res.ok else {}
         level = summoner_data.get('summonerLevel')
 
         # 3. Get Ranked data
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-        ranked_res = requests.get(ranked_url, headers=headers)
+        ranked_res = requests.get(ranked_url, headers=headers, timeout=10)
         ranked_data = ranked_res.json() if ranked_res.ok else []
         solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
 
@@ -80,7 +86,7 @@ def player():
         champ_stats = {} 
 
         match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
-        match_ids_res = requests.get(match_ids_url, headers=headers)
+        match_ids_res = requests.get(match_ids_url, headers=headers, timeout=10)
         match_ids = match_ids_res.json() if match_ids_res.ok else []
 
         with ThreadPoolExecutor(max_workers=10) as executor:
