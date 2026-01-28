@@ -567,12 +567,12 @@ async function loadLeaderboard() {
     try {
       const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
       const res = await fetch(url);
+      const data = await res.json().catch(() => ({ detail: "Could not parse response from server." }));
+
       if (!res.ok) {
-          const errorBody = await res.json().catch(() => ({ detail: "Could not parse error response from server." }));
-          console.error(`Server responded with ${res.status} for ${p.summonerName}`, errorBody);
-          throw new Error(`Error fetching: Server responded with ${res.status}`);
+          console.error(`Server responded with ${res.status} for ${p.summonerName}`, data);
+          throw new Error(data.details || `Error fetching: Server responded with ${res.status}`);
       }
-      const data = await res.json();
       return data;
     } catch (err) {
       console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
