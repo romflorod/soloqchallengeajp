@@ -13,17 +13,21 @@ def fetch_data(url, headers, timeout=5):
     try:
         response = requests.get(url, headers=headers, timeout=timeout)
         response.raise_for_status()
-        return response.json()
+        return response.json(), None
     except requests.exceptions.RequestException as e:
         print(f"[API] Error fetching {url}: {e}")
+        status_code = 500
+        error_msg = str(e)
         if hasattr(e, 'response') and e.response is not None:
             print(f"[API] Response Status: {e.response.status_code}, Body: {e.response.text}")
-        return None
+            status_code = e.response.status_code
+            error_msg = e.response.text
+        return None, {"status": status_code, "details": error_msg}
 
 def fetch_and_process_match(match_id, headers, puuid):
     """Fetches a single match and returns processed stats for the player."""
     url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
-    data = fetch_data(url, headers)
+    data, _ = fetch_data(url, headers)
     if data:
         info = data.get('info', {})
         participants = info.get('participants', [])
@@ -65,10 +69,10 @@ def player():
         account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
         
         print(f"[API] Fetching account: {account_url}")
-        account_data = fetch_data(account_url, headers, timeout=10)
+        account_data, error = fetch_data(account_url, headers, timeout=10)
         if not account_data:
-            print("[API] Account not found")
-            return jsonify({"error": "Riot Account not found or API error"}), 404
+            print(f"[API] Error fetching account: {error}")
+            return jsonify({"error": "Riot API Error", "details": error['details']}), error['status']
             
         puuid = account_data.get('puuid')
         game_name = account_data.get('gameName', name)
@@ -80,10 +84,14 @@ def player():
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
 
+        def fetch_silent(u, h):
+            d, _ = fetch_data(u, h)
+            return d
+
         with ThreadPoolExecutor(max_workers=3) as executor:
-            future_summoner = executor.submit(fetch_data, summoner_url, headers)
-            future_ranked = executor.submit(fetch_data, ranked_url, headers)
-            future_match_ids = executor.submit(fetch_data, match_ids_url, headers)
+            future_summoner = executor.submit(fetch_silent, summoner_url, headers)
+            future_ranked = executor.submit(fetch_silent, ranked_url, headers)
+            future_match_ids = executor.submit(fetch_silent, match_ids_url, headers)
 
             summoner_data = future_summoner.result() or {}
             ranked_data = future_ranked.result() or []
