@@ -54,23 +54,11 @@ def fetch_and_process_match(match_id, headers, puuid):
         player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
         if player_stats:
             return {
-                "gameCreation": info.get('gameCreation', 0),
-                "gameDuration": info.get('gameDuration', 0),
-                "queueId": info.get('queueId', 0),
                 "win": player_stats.get('win'),
                 "kills": player_stats.get('kills', 0),
                 "deaths": player_stats.get('deaths', 0),
                 "assists": player_stats.get('assists', 0),
-                "championName": player_stats.get('championName', 'Unknown'),
-                "cs": player_stats.get('totalMinionsKilled', 0) + player_stats.get('neutralMinionsKilled', 0),
-                "gold": player_stats.get('goldEarned', 0),
-                "damage": player_stats.get('totalDamageDealtToChampions', 0),
-                "vision": player_stats.get('visionScore', 0),
-                "items": [
-                    player_stats.get('item0', 0), player_stats.get('item1', 0), player_stats.get('item2', 0),
-                    player_stats.get('item3', 0), player_stats.get('item4', 0), player_stats.get('item5', 0),
-                    player_stats.get('item6', 0)
-                ]
+                "championName": player_stats.get('championName', 'Unknown')
             }
     return None
 
@@ -159,7 +147,6 @@ def player():
         total_deaths = 0
         total_assists = 0
         champ_stats = {} 
-        last_match = None
 
         if match_ids:
             # Reducimos workers a 5 para ser más amables con el Rate Limit
@@ -169,8 +156,6 @@ def player():
                 for i, future in enumerate(futures):
                     details = future.result()
                     if details:
-                        if i == 0:
-                            last_match = details
                         win = details.get('win')
                         recent_games.append("W" if win else "L")
                         
@@ -258,7 +243,6 @@ def player():
                 "avg_d": avg_d,
                 "avg_a": avg_a,
                 "streak": streak,
-                "last_match": last_match,
                 "top_champs": top_champs,
                 "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
                 "top_mastery": top_mastery,
@@ -280,7 +264,6 @@ def player():
             "avg_d": avg_d,
             "avg_a": avg_a,
             "streak": streak,
-            "last_match": last_match,
             "top_champs": top_champs,
             "ladder_rank": None,
             "ranked_flex": None,
