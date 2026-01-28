@@ -9,13 +9,23 @@ from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 CORS(app)
 
+# --- IN-MEMORY CACHE SYSTEM ---
+# Almacena los datos de los jugadores para no saturar la API
+PLAYER_CACHE = {}
+CACHE_DURATION = 3600  # 1 hora en segundos (ajusta este valor si quieres más/menos tiempo)
+
 def fetch_data(url, headers, timeout=5, retries=3):
     for i in range(retries + 1):
         try:
             response = requests.get(url, headers=headers, timeout=timeout)
             if response.status_code == 429:
                 retry_after = int(response.headers.get('Retry-After', 1))
-                print(f"[API] Rate limit 429. Retrying in {retry_after}s...")
+                # Si Riot nos pide esperar más de 10 segundos, abortamos para no colgar Vercel
+                if retry_after > 10:
+                    print(f"[API] Rate limit 429. Wait time {retry_after}s is too long. Aborting fetch.")
+                    return None, {"status": 429, "details": f"Rate limit exceeded. Try again in {retry_after}s."}
+                
+                print(f"[API] Rate limit 429. Retrying in {retry_after}s...") 
                 time.sleep(retry_after)
                 continue
             
@@ -77,6 +87,16 @@ def player():
         if not name or not tag:
             return jsonify({"error": "Missing name or tag"}), 400
 
+        # 0. CHECK CACHE
+        cache_key = f"{name.lower()}#{tag.lower()}"
+        current_time = time.time()
+        
+        if cache_key in PLAYER_CACHE:
+            cached_entry = PLAYER_CACHE[cache_key]
+            if current_time - cached_entry['timestamp'] < CACHE_DURATION:
+                print(f"[API] Returning cached data for {name}#{tag} (Age: {int(current_time - cached_entry['timestamp'])}s)")
+                return jsonify(cached_entry['data'])
+
         api_key = os.environ.get('RIOT_API_KEY')
         if not api_key:
             print("[API] CRITICAL: RIOT_API_KEY environment variable not found.")
@@ -109,8 +129,10 @@ def player():
         mastery_url = f"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3"
         spectator_url = f"https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}"
 
-        def fetch_silent(u, h):
-            d, _ = fetch_data(u, h)
+        def fetch_silent(u, h, ignore_404=False):
+            d, err = fetch_data(u, h)
+            if err and err['status'] == 404 and ignore_404:
+                return None # Es normal no encontrar partida activa (Spectator)
             return d
 
         with ThreadPoolExecutor(max_workers=3) as executor:
@@ -118,7 +140,7 @@ def player():
             future_ranked = executor.submit(fetch_silent, ranked_url, headers)
             future_match_ids = executor.submit(fetch_silent, match_ids_url, headers)
             future_mastery = executor.submit(fetch_silent, mastery_url, headers)
-            future_spectator = executor.submit(fetch_silent, spectator_url, headers)
+            future_spectator = executor.submit(fetch_silent, spectator_url, headers, True) # Ignore 404 for spectator
 
             summoner_data = future_summoner.result() or {}
             ranked_data = future_ranked.result() or []
@@ -140,7 +162,8 @@ def player():
         last_match = None
 
         if match_ids:
-            with ThreadPoolExecutor(max_workers=10) as executor:
+            # Reducimos workers a 5 para ser más amables con el Rate Limit
+            with ThreadPoolExecutor(max_workers=5) as executor:
                 futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:10]]
                 
                 for i, future in enumerate(futures):
@@ -268,6 +291,12 @@ def player():
             "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
             "top_mastery": top_mastery,
             "is_in_game": is_in_game
+        }
+        
+        # SAVE TO CACHE
+        PLAYER_CACHE[cache_key] = {
+            'data': response,
+            'timestamp': current_time
         }
         
         print(f"[API] Total request time: {time.time() - start_time:.2f}s")
