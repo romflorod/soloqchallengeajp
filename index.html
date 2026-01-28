@@ -477,6 +477,34 @@
     .refresh-btn:hover {
       background: rgba(255, 255, 255, 0.2);
     }
+    
+    /* Live Badge */
+    .live-badge {
+        background-color: #ef4444;
+        color: white;
+        font-size: 0.65rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        font-weight: 700;
+        margin-left: 8px;
+        animation: pulse-red 2s infinite;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+    }
+    .live-badge::before {
+        content: '';
+        display: block;
+        width: 6px;
+        height: 6px;
+        background-color: white;
+        border-radius: 50%;
+    }
+    @keyframes pulse-red {
+        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
+        70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
+        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
+    }
 
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
@@ -524,6 +552,8 @@ const players = [
 const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
 const API_BASE = isLocal ? "http://127.0.0.1:5000/api/player" : "/api/player";
 
+let championMap = {};
+
 const tierValues = {
   "CHALLENGER": 90, "GRANDMASTER": 80, "MASTER": 70,
   "DIAMOND": 60, "EMERALD": 50, "PLATINUM": 40,
@@ -541,6 +571,19 @@ function getRankIcon(tier) {
     if (!tier || tier === "UNRANKED") return "https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-unranked.png";
     // CommunityDragon usa nombres en minúscula para los archivos (ej: emblem-gold.png)
     return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/images/ranked-emblem/emblem-${tier.toLowerCase()}.png`;
+}
+
+async function loadChampionData() {
+    try {
+        const res = await fetch('https://ddragon.leagueoflegends.com/cdn/14.2.1/data/en_US/champion.json');
+        const data = await res.json();
+        for (const champName in data.data) {
+            const champ = data.data[champName];
+            championMap[champ.key] = champ.id; // Map ID (string) to Name
+        }
+    } catch (e) {
+        console.error("Error loading champion data", e);
+    }
 }
 
 function getChampImage(name) {
@@ -578,6 +621,7 @@ function calculateScore(p) {
 }
 
 async function loadLeaderboard() {
+  if (Object.keys(championMap).length === 0) await loadChampionData();
   const leaderboard = document.getElementById("leaderboard");
   
   // Mostrar skeletons mientras carga
@@ -707,13 +751,14 @@ async function loadLeaderboard() {
 
     // HTML de Maestrías
     let masteryHtml = '';
-    if (p.masteries && p.masteries.length > 0) {
+    if (p.top_mastery && p.top_mastery.length > 0) {
         masteryHtml = `<div class="stats-title" style="margin-top:1rem;">Maestría</div>
         <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:5px;">`;
-        p.masteries.slice(0, 5).forEach(m => {
+        p.top_mastery.forEach(m => {
+            const champName = championMap[m.championId] || "Unknown";
             masteryHtml += `
             <div style="text-align:center; min-width:60px;">
-                <img src="${getChampImage(m.champion)}" style="width:34px; height:34px; border-radius:50%; border:2px solid #fbbf24; padding:1px;">
+                <img src="${getChampImage(champName)}" style="width:34px; height:34px; border-radius:50%; border:2px solid #fbbf24; padding:1px;" title="${champName}">
                 <div style="font-size:0.7rem; color:#fbbf24; font-weight:bold; margin-top:2px;">Lvl ${m.level}</div>
                 <div style="font-size:0.65rem; color:#94a3b8;">${parseInt(m.points.replace(/,/g,'')).toLocaleString()}</div>
             </div>`;
@@ -730,6 +775,7 @@ async function loadLeaderboard() {
           <div class="player-info">
             <div class="summoner-name">
                 ${p.name} <span class="summoner-tag">#${p.tag}</span> 
+                ${p.is_in_game ? '<span class="live-badge">LIVE</span>' : ''}
             </div>
             <div class="winrate-container">
                 <div class="progress-bg">

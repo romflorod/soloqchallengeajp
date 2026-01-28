@@ -94,6 +94,8 @@ def player():
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
+        mastery_url = f"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3"
+        spectator_url = f"https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}"
 
         def fetch_silent(u, h):
             d, _ = fetch_data(u, h)
@@ -103,10 +105,14 @@ def player():
             future_summoner = executor.submit(fetch_silent, summoner_url, headers)
             future_ranked = executor.submit(fetch_silent, ranked_url, headers)
             future_match_ids = executor.submit(fetch_silent, match_ids_url, headers)
+            future_mastery = executor.submit(fetch_silent, mastery_url, headers)
+            future_spectator = executor.submit(fetch_silent, spectator_url, headers)
 
             summoner_data = future_summoner.result() or {}
             ranked_data = future_ranked.result() or []
             match_ids = future_match_ids.result() or []
+            mastery_data = future_mastery.result() or []
+            spectator_data = future_spectator.result()
 
         print(f"[API] Step 2 took {time.time() - step2_start:.2f}s")
         level = summoner_data.get('summonerLevel')
@@ -183,6 +189,21 @@ def player():
                 "winrate": winrate
             })
 
+        # Process Mastery
+        top_mastery = []
+        if mastery_data:
+            for m in mastery_data:
+                top_mastery.append({
+                    "championId": m.get('championId'),
+                    "level": m.get('championLevel'),
+                    "points": m.get('championPoints')
+                })
+
+        # Process Active Game
+        is_in_game = False
+        if spectator_data and spectator_data.get('gameId'):
+            is_in_game = True
+
         if not solo_q_data:
             return jsonify({
                 "name": game_name,
@@ -200,7 +221,9 @@ def player():
                 "avg_a": avg_a,
                 "streak": streak,
                 "top_champs": top_champs,
-                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
+                "top_mastery": top_mastery,
+                "is_in_game": is_in_game
             })
 
         response = {
@@ -221,11 +244,13 @@ def player():
             "top_champs": top_champs,
             "ladder_rank": None,
             "ranked_flex": None,
-            "mastery": None,
-            "masteries": [],
+            "mastery": None, # Deprecated field
+            "masteries": [], # Deprecated field
             "past_rank": None,
             "past_ranks": [],
-            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
+            "top_mastery": top_mastery,
+            "is_in_game": is_in_game
         }
         
         print(f"[API] Total request time: {time.time() - start_time:.2f}s")
