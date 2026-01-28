@@ -11,31 +11,37 @@ from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 CORS(app)
 
+def fetch_data(url, headers, timeout=5):
+    try:
+        response = requests.get(url, headers=headers, timeout=timeout)
+        response.raise_for_status()
+        return response.json()
+    except requests.exceptions.RequestException as e:
+        print(f"[API] Error fetching {url}: {e}")
+        return None
+
 def fetch_and_process_match(match_id, headers, puuid):
     """Fetches a single match and returns processed stats for the player."""
-    try:
-        match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
-        match_res = requests.get(match_url, headers=headers, timeout=5) # Add timeout
-        if match_res.ok:
-            match_data = match_res.json()
-            info = match_data.get('info', {})
-            participants = info.get('participants', [])
-            player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
-            if player_stats:
-                return {
-                    "win": player_stats.get('win'),
-                    "kills": player_stats.get('kills', 0),
-                    "deaths": player_stats.get('deaths', 0),
-                    "assists": player_stats.get('assists', 0),
-                    "championName": player_stats.get('championName')
-                }
-    except requests.exceptions.RequestException as e:
-        print(f"[API] Failed to fetch match {match_id}: {e}")
+    url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
+    data = fetch_data(url, headers)
+    if data:
+        info = data.get('info', {})
+        participants = info.get('participants', [])
+        player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
+        if player_stats:
+            return {
+                "win": player_stats.get('win'),
+                "kills": player_stats.get('kills', 0),
+                "deaths": player_stats.get('deaths', 0),
+                "assists": player_stats.get('assists', 0),
+                "championName": player_stats.get('championName')
+            }
     return None
 
 @app.route('/api/player', methods=['GET'])
 def player():
     try:
+        start_time = time.time()
         name = request.args.get('name')
         tag = request.args.get('tag')
 
@@ -44,96 +50,83 @@ def player():
         if not name or not tag:
             return jsonify({"error": "Missing name or tag"}), 400
 
-        # --- DATA FETCHING FROM RIOT API ---
         api_key = os.environ.get('RIOT_API_KEY')
         if api_key:
             print("[API] Found RIOT_API_KEY in environment variables.")
         else:
             print("[API] CRITICAL: RIOT_API_KEY environment variable not found. The API calls will fail.")
-            # Return a clear error if the key is missing entirely
             return jsonify({"error": "Server is not configured with a RIOT_API_KEY."}), 500
         
         headers = {"X-Riot-Token": api_key}
 
-        # 1. Get PUUID
-        try:
-            encoded_name = urllib.parse.quote(name)
-            encoded_tag = urllib.parse.quote(tag)
-            account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
-            print(f"[API] Step 1: Fetching PUUID for {name}#{tag}")
-            account_res = requests.get(account_url, headers=headers, timeout=10)
-            account_res.raise_for_status() # Lanza un error para status 4xx/5xx
-            account_data = account_res.json()
-            puuid = account_data.get('puuid')
-            game_name = account_data.get('gameName')
-            print(f"[API] Step 1 SUCCESS: PUUID={puuid}")
-        except requests.exceptions.HTTPError as e:
-            print(f"[API] Step 1 FAILED: HTTP Error on account fetch. Status: {e.response.status_code}. Response: {e.response.text}")
-            if e.response.status_code == 403:
-                return jsonify({"error": "Riot API Key is invalid or expired (403 Forbidden)."}), 502
-            elif e.response.status_code == 404:
-                return jsonify({"error": f"Riot Account not found for {name}#{tag}"}), 404
-            return jsonify({"error": "Failed to fetch account data from Riot API", "details": str(e)}), 502
+        # 1. Get PUUID (Ruta crítica, no se puede paralelizar)
+        encoded_name = urllib.parse.quote(name)
+        encoded_tag = urllib.parse.quote(tag)
+        account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
+        
+        account_data = fetch_data(account_url, headers, timeout=10)
+        if not account_data:
+            return jsonify({"error": "Riot Account not found or API error"}), 404
+            
+        puuid = account_data.get('puuid')
+        game_name = account_data.get('gameName', name)
+        print(f"[API] Step 1 took {time.time() - start_time:.2f}s: PUUID={puuid}")
 
-        # 2. Get Summoner data (level)
-        # Usamos by-puuid ya que by-name no está permitido en tu clave
-        print(f"[API] Step 2: Fetching Summoner Level for PUUID {puuid}")
+        step2_start = time.time()
+        # 2. Fetch Summoner, Ranked, and Match IDs EN PARALELO
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-        summoner_res = requests.get(summoner_url, headers=headers, timeout=10)
-        summoner_data = summoner_res.json() if summoner_res.ok else {}
-        level = summoner_data.get('summonerLevel')
-        print(f"[API] Step 2 SUCCESS: Level={level}")
-
-        # 3. Get Ranked data
-        # Usamos el endpoint by-puuid que sí tienes habilitado
-        print(f"[API] Step 3: Fetching Ranked Data for PUUID {puuid}")
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-        ranked_res = requests.get(ranked_url, headers=headers, timeout=10)
-        ranked_data = ranked_res.json() if ranked_res.ok else []
-        solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
-        print(f"[API] Step 3 SUCCESS: SoloQ data found: {solo_q_data is not None}")
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
 
-        # 4. Get Match History
+        with ThreadPoolExecutor(max_workers=3) as executor:
+            future_summoner = executor.submit(fetch_data, summoner_url, headers)
+            future_ranked = executor.submit(fetch_data, ranked_url, headers)
+            future_match_ids = executor.submit(fetch_data, match_ids_url, headers)
+
+            summoner_data = future_summoner.result() or {}
+            ranked_data = future_ranked.result() or []
+            match_ids = future_match_ids.result() or []
+
+        print(f"[API] Step 2 took {time.time() - step2_start:.2f}s: Fetched summoner, ranked, and match IDs.")
+        level = summoner_data.get('summonerLevel')
+        solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
+
+        # 3. Fetch Matches EN PARALELO
+        step3_start = time.time()
         recent_games = []
         total_kills = 0
         total_deaths = 0
         total_assists = 0
         champ_stats = {} 
 
-        print(f"[API] Step 4: Fetching Match IDs for PUUID {puuid}")
-        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
-        match_ids_res = requests.get(match_ids_url, headers=headers, timeout=10)
-        match_ids = match_ids_res.json() if match_ids_res.ok else []
-        print(f"[API] Step 4 SUCCESS: Found {len(match_ids)} match IDs.")
+        if match_ids:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:10]]
+                
+                for future in futures:
+                    details = future.result()
+                    if details:
+                        win = details.get('win')
+                        recent_games.append("W" if win else "L")
+                        
+                        k = details.get('kills', 0)
+                        d = details.get('deaths', 0)
+                        a = details.get('assists', 0)
+                        total_kills += k
+                        total_deaths += d
+                        total_assists += a
+                        
+                        c_name = details.get('championName')
+                        if c_name:
+                            if c_name not in champ_stats:
+                                champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
+                            champ_stats[c_name]['count'] += 1
+                            if win:
+                                champ_stats[c_name]['wins'] += 1
+                            else:
+                                champ_stats[c_name]['losses'] += 1
+        print(f"[API] Step 3 took {time.time() - step3_start:.2f}s: Processed {len(match_ids)} matches.")
 
-        print(f"[API] Step 5: Fetching details for {len(match_ids)} matches in parallel...")
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_match = {executor.submit(fetch_and_process_match, match_id, headers, puuid): match_id for match_id in match_ids}
-            for future in future_to_match:
-                match_details = future.result()
-                if match_details:
-                    win = match_details.get('win')
-                    recent_games.append("W" if win else "L")
-                    
-                    # Acumular stats para KDA
-                    k = match_details.get('kills', 0)
-                    d = match_details.get('deaths', 0)
-                    a = match_details.get('assists', 0)
-                    total_kills += k
-                    total_deaths += d
-                    total_assists += a
-                    
-                    # Acumular stats de campeones
-                    c_name = match_details.get('championName')
-                    if c_name not in champ_stats:
-                        champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
-                    champ_stats[c_name]['count'] += 1
-                    if win:
-                        champ_stats[c_name]['wins'] += 1
-                    else:
-                        champ_stats[c_name]['losses'] += 1
-
-        print("[API] Step 5 SUCCESS: Finished processing matches.")
         # --- CALCULATE STATS ---
         
         # 1. Streak (Racha)
@@ -191,7 +184,7 @@ def player():
             })
 
         response = {
-            "name": game_name if 'game_name' in locals() else name,
+            "name": game_name,
             "tag": tag,
             "tier": solo_q_data.get('tier'),
             "rank": solo_q_data.get('rank'),

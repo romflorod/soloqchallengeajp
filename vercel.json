@@ -22,5 +22,10 @@
       "src": "/",
       "dest": "/index.html"
     }
-  ]
+  ],
+  "functions": {
+    "app.py": {
+      "maxDuration": 15
+    }
+  }
 }
