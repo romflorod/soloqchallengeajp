@@ -496,9 +496,10 @@ const players = [
   { summonerName: "alejandri", tag: "euw" }
 ];
 
-// const API_BASE = "http://127.0.0.1:5000/api/player";
-const API_BASE = "/api/player";
-
+// Detecta si estamos en entorno local (abriendo el archivo directamente)
+// o en un servidor desplegado como Vercel, y usa la URL correcta.
+const isLocal = window.location.protocol === 'file:' || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+const API_BASE = isLocal ? "http://127.0.0.1:5000/api/player" : "/api/player";
 
 const tierValues = {
   "CHALLENGER": 90, "GRANDMASTER": 80, "MASTER": 70,
