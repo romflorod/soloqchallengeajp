@@ -44,11 +44,23 @@ def fetch_and_process_match(match_id, headers, puuid):
         player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
         if player_stats:
             return {
+                "gameCreation": info.get('gameCreation'),
+                "gameDuration": info.get('gameDuration'),
+                "queueId": info.get('queueId'),
                 "win": player_stats.get('win'),
                 "kills": player_stats.get('kills', 0),
                 "deaths": player_stats.get('deaths', 0),
                 "assists": player_stats.get('assists', 0),
-                "championName": player_stats.get('championName')
+                "championName": player_stats.get('championName'),
+                "cs": player_stats.get('totalMinionsKilled', 0) + player_stats.get('neutralMinionsKilled', 0),
+                "gold": player_stats.get('goldEarned', 0),
+                "damage": player_stats.get('totalDamageDealtToChampions', 0),
+                "vision": player_stats.get('visionScore', 0),
+                "items": [
+                    player_stats.get('item0'), player_stats.get('item1'), player_stats.get('item2'),
+                    player_stats.get('item3'), player_stats.get('item4'), player_stats.get('item5'),
+                    player_stats.get('item6')
+                ]
             }
     return None
 
@@ -125,14 +137,17 @@ def player():
         total_deaths = 0
         total_assists = 0
         champ_stats = {} 
+        last_match = None
 
         if match_ids:
             with ThreadPoolExecutor(max_workers=10) as executor:
                 futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:10]]
                 
-                for future in futures:
+                for i, future in enumerate(futures):
                     details = future.result()
                     if details:
+                        if i == 0:
+                            last_match = details
                         win = details.get('win')
                         recent_games.append("W" if win else "L")
                         
@@ -220,6 +235,7 @@ def player():
                 "avg_d": avg_d,
                 "avg_a": avg_a,
                 "streak": streak,
+                "last_match": last_match,
                 "top_champs": top_champs,
                 "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
                 "top_mastery": top_mastery,
@@ -241,6 +257,7 @@ def player():
             "avg_d": avg_d,
             "avg_a": avg_a,
             "streak": streak,
+            "last_match": last_match,
             "top_champs": top_champs,
             "ladder_rank": None,
             "ranked_flex": None,

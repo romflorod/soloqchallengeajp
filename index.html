@@ -522,6 +522,80 @@
             border-top: 1px solid rgba(255,255,255,0.05);
         }
     }
+
+    /* Last Match Styles */
+    .last-match-card {
+        background: rgba(0,0,0,0.2);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 1rem;
+        border-left: 4px solid transparent;
+    }
+    .lm-win { border-left-color: #4ade80; background: linear-gradient(90deg, rgba(74, 222, 128, 0.05) 0%, rgba(0,0,0,0.2) 100%); }
+    .lm-loss { border-left-color: #f87171; background: linear-gradient(90deg, rgba(248, 113, 113, 0.05) 0%, rgba(0,0,0,0.2) 100%); }
+
+    .lm-header {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.75rem;
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+    }
+    .lm-result { color: inherit; }
+    .lm-win .lm-result { color: #4ade80; }
+    .lm-loss .lm-result { color: #f87171; }
+    .lm-duration { color: #94a3b8; }
+
+    .lm-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        flex-wrap: wrap;
+    }
+
+    .lm-champ {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        min-width: 120px;
+    }
+    .lm-champ-img {
+        width: 48px;
+        height: 48px;
+        border-radius: 8px;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .lm-kda {
+        display: flex;
+        flex-direction: column;
+    }
+    .kda-main { font-size: 1rem; font-weight: 700; color: #f4f4f5; }
+    .kda-ratio { font-size: 0.75rem; color: #94a3b8; }
+
+    .lm-stats {
+        display: flex;
+        gap: 12px;
+        font-size: 0.8rem;
+        color: #cbd5e1;
+        margin-right: auto;
+    }
+    .lm-stat span { margin-right: 4px; opacity: 0.7; }
+
+    .lm-items {
+        display: flex;
+        gap: 2px;
+    }
+    .lm-item-img {
+        width: 28px;
+        height: 28px;
+        border-radius: 4px;
+        background: #0f172a;
+        border: 1px solid rgba(255,255,255,0.1);
+    }
+    .lm-item-empty { width: 28px; height: 28px; border-radius: 4px; background: rgba(255,255,255,0.05); }
+
   </style>
 </head>
 <body>
@@ -766,6 +840,57 @@ async function loadLeaderboard() {
         masteryHtml += `</div>`;
     }
 
+    // HTML de Última Partida
+    let lastMatchHtml = '';
+    if (p.last_match) {
+        const lm = p.last_match;
+        const resultText = lm.win ? "VICTORIA" : "DERROTA";
+        const resultClass = lm.win ? "lm-win" : "lm-loss";
+        const durationMin = Math.floor(lm.gameDuration / 60);
+        const durationSec = lm.gameDuration % 60;
+        
+        // Items
+        let itemsHtml = '<div class="lm-items">';
+        lm.items.forEach(item => {
+            if(item > 0) {
+                itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/14.2.1/img/item/${item}.png" class="lm-item-img" title="Item ${item}">`;
+            } else {
+                itemsHtml += `<div class="lm-item-empty"></div>`;
+            }
+        });
+        itemsHtml += '</div>';
+
+        lastMatchHtml = `
+            <div class="stats-title">Última Partida</div>
+            <div class="last-match-card ${resultClass}">
+                <div class="lm-header">
+                    <span class="lm-result">${resultText}</span>
+                    <span class="lm-duration">${durationMin}m ${durationSec}s</span>
+                </div>
+                <div class="lm-content">
+                    <div class="lm-champ">
+                        <img src="${getChampImage(lm.championName)}" class="lm-champ-img" alt="${lm.championName}">
+                        <div class="lm-kda">
+                            <span class="kda-main">${lm.kills}/${lm.deaths}/${lm.assists}</span>
+                            <span class="kda-ratio">${lm.deaths > 0 ? ((lm.kills+lm.assists)/lm.deaths).toFixed(2) : "Perfect"} KDA</span>
+                        </div>
+                    </div>
+                    <div class="lm-stats">
+                        <div class="lm-stat" title="Súbditos">
+                            <span>👾</span> ${lm.cs} CS
+                        </div>
+                        <div class="lm-stat" title="Oro">
+                            <span>💰</span> ${(lm.gold/1000).toFixed(1)}k
+                        </div>
+                        <div class="lm-stat" title="Daño">
+                            <span>⚔️</span> ${(lm.damage/1000).toFixed(1)}k
+                        </div>
+                    </div>
+                    ${itemsHtml}
+                </div>
+            </div>`;
+    }
+
     card.innerHTML = `
       <div class="card-main">
           <div class="rank-pos ${rankClass}">#${index + 1}</div>
@@ -807,6 +932,7 @@ async function loadLeaderboard() {
       </div>
       <div class="card-details">
           <div class="stats-title">
+          ${lastMatchHtml}
             <span>Campeones</span>
             <span>Winrate</span>
           </div>
