@@ -59,7 +59,9 @@ def player():
             account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
             account_res = requests.get(account_url, headers=headers, timeout=10)
             account_res.raise_for_status() # Lanza un error para status 4xx/5xx
-            puuid = account_res.json().get('puuid')
+            account_data = account_res.json()
+            puuid = account_data.get('puuid')
+            game_name = account_data.get('gameName')
         except requests.exceptions.HTTPError as e:
             if e.response.status_code == 404:
                 print(f"[API] Riot Account not found for {name}#{tag}")
@@ -69,12 +71,14 @@ def player():
                 return jsonify({"error": "Failed to fetch account data from Riot API", "details": str(e)}), 502 # Bad Gateway
 
         # 2. Get Summoner data (level)
+        # Usamos by-puuid ya que by-name no está permitido en tu clave
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         summoner_res = requests.get(summoner_url, headers=headers, timeout=10)
         summoner_data = summoner_res.json() if summoner_res.ok else {}
         level = summoner_data.get('summonerLevel')
 
         # 3. Get Ranked data
+        # Usamos el endpoint by-puuid que sí tienes habilitado
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         ranked_res = requests.get(ranked_url, headers=headers, timeout=10)
         ranked_data = ranked_res.json() if ranked_res.ok else []
@@ -159,15 +163,22 @@ def player():
         # Handle unranked player
         if not solo_q_data:
             return jsonify({
-                "name": name, "tag": tag, "tier": "UNRANKED", "rank": "", "lp": 0,
-                "wins": 0, "losses": 0, "level": level, "recent_games": recent_games,
+                "name": game_name if 'game_name' in locals() else name, 
+                "tag": tag, 
+                "tier": "UNRANKED", 
+                "rank": "", 
+                "lp": 0,
+                "wins": 0, 
+                "losses": 0, 
+                "level": level, 
+                "recent_games": recent_games,
                 "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
                 "top_champs": top_champs,
                 "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
             })
 
         response = {
-            "name": name,
+            "name": game_name if 'game_name' in locals() else name,
             "tag": tag,
             "tier": solo_q_data.get('tier'),
             "rank": solo_q_data.get('rank'),
