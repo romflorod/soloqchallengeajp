@@ -2,6 +2,7 @@ import os
 import requests
 import urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from flask import Request
 
 def fetch_and_process_match(match_id, headers, puuid):
     """Fetches a single match and returns processed stats for the player."""
@@ -21,28 +22,32 @@ def fetch_and_process_match(match_id, headers, puuid):
                     "assists": player_stats.get('assists', 0),
                     "championName": player_stats.get('championName')
                 }
-    except requests.exceptions.RequestException as e:
+    except Exception as e:
         print(f"[API] Failed to fetch match {match_id}: {e}")
     return None
 
-def handler(req):
-    """Handler for Vercel serverless functions"""
+def handler(request: Request):
+    """Handler para Vercel serverless functions"""
     try:
-        # Get query parameters
-        name = req.args.get('name')
-        tag = req.args.get('tag')
+        # CORRECCIÓN: usar request.args en lugar de req.args
+        name = request.args.get('name')
+        tag = request.args.get('tag')
 
         print(f"[API] Request: name={name}, tag={tag}")
 
         if not name or not tag:
             print("[API] Missing name or tag")
-            return {"error": "Missing name or tag"}, 400
+            return {
+                "error": "Missing name or tag"
+            }, 400
 
         api_key = os.environ.get('RIOT_API_KEY')
 
         if not api_key:
             print("[API] RIOT_API_KEY not configured")
-            return {"error": "RIOT_API_KEY not configured"}, 500
+            return {
+                "error": "RIOT_API_KEY not configured"
+            }, 500
 
         print("[API] API Key found, requesting account data...")
         headers = {"X-Riot-Token": api_key}
@@ -51,16 +56,20 @@ def handler(req):
         encoded_name = urllib.parse.quote(name)
         encoded_tag = urllib.parse.quote(tag)
         account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
+        
         account_res = requests.get(account_url, headers=headers, timeout=10)
-
         print(f"[API] Account Response Status: {account_res.status_code}")
 
         if not account_res.ok:
             error_data = account_res.text
             print(f"[API] Account API Error: {error_data}")
-            return {"error": "Riot Account not found"}, 404
+            return {
+                "error": "Riot Account not found"
+            }, 404
 
-        puuid = account_res.json().get('puuid')
+        account_data = account_res.json()
+        puuid = account_data.get('puuid')
+        game_name = account_data.get('gameName', name)
         print(f"[API] PUUID obtained: {puuid}")
 
         # 2. Get Summoner data (level)
@@ -86,29 +95,34 @@ def handler(req):
         match_ids_res = requests.get(match_ids_url, headers=headers, timeout=10)
         match_ids = match_ids_res.json() if match_ids_res.ok else []
 
-        with ThreadPoolExecutor(max_workers=10) as executor:
-            future_to_match = {executor.submit(fetch_and_process_match, match_id, headers, puuid): match_id for match_id in match_ids}
-            for future in future_to_match:
-                match_details = future.result()
-                if match_details:
-                    win = match_details.get('win')
-                    recent_games.append("W" if win else "L")
-                    k = match_details.get('kills', 0)
-                    d = match_details.get('deaths', 0)
-                    a = match_details.get('assists', 0)
-                    total_kills += k
-                    total_deaths += d
-                    total_assists += a
-                    c_name = match_details.get('championName')
-                    if c_name not in champ_stats:
-                        champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
-                    champ_stats[c_name]['count'] += 1
-                    if win:
-                        champ_stats[c_name]['wins'] += 1
-                    else:
-                        champ_stats[c_name]['losses'] += 1
+        if match_ids:
+            with ThreadPoolExecutor(max_workers=10) as executor:
+                future_to_match = {
+                    executor.submit(fetch_and_process_match, match_id, headers, puuid): match_id 
+                    for match_id in match_ids
+                }
+                for future in future_to_match:
+                    match_details = future.result()
+                    if match_details:
+                        win = match_details.get('win')
+                        recent_games.append("W" if win else "L")
+                        k = match_details.get('kills', 0)
+                        d = match_details.get('deaths', 0)
+                        a = match_details.get('assists', 0)
+                        total_kills += k
+                        total_deaths += d
+                        total_assists += a
+                        c_name = match_details.get('championName')
+                        if c_name:
+                            if c_name not in champ_stats:
+                                champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
+                            champ_stats[c_name]['count'] += 1
+                            if win:
+                                champ_stats[c_name]['wins'] += 1
+                            else:
+                                champ_stats[c_name]['losses'] += 1
 
-        # --- CALCULATE STATS ---
+        # Calculate stats
         streak = None
         if recent_games:
             current_streak_type = recent_games[0]
@@ -133,19 +147,35 @@ def handler(req):
         sorted_champs = sorted(champ_stats.items(), key=lambda item: item[1]['count'], reverse=True)
         for champ_name, stats in sorted_champs[:3]:
             winrate = int((stats['wins'] / stats['count']) * 100)
-            top_champs.append({"name": champ_name, "wins": stats['wins'], "losses": stats['losses'], "winrate": winrate})
+            top_champs.append({
+                "name": champ_name, 
+                "wins": stats['wins'], 
+                "losses": stats['losses'], 
+                "winrate": winrate
+            })
 
         if not solo_q_data:
             return {
-                "name": name, "tag": tag, "tier": "UNRANKED", "rank": "", "lp": 0,
-                "wins": 0, "losses": 0, "level": level, "recent_games": recent_games,
-                "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+                "name": game_name,
+                "tag": tag,
+                "tier": "UNRANKED",
+                "rank": "",
+                "lp": 0,
+                "wins": 0,
+                "losses": 0,
+                "level": level,
+                "recent_games": recent_games,
+                "kda": kda,
+                "avg_k": avg_k,
+                "avg_d": avg_d,
+                "avg_a": avg_a,
+                "streak": streak,
                 "top_champs": top_champs,
                 "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
             }, 200
 
         response = {
-            "name": name,
+            "name": game_name,
             "tag": tag,
             "tier": solo_q_data.get('tier'),
             "rank": solo_q_data.get('rank'),
@@ -154,14 +184,27 @@ def handler(req):
             "losses": solo_q_data.get('losses', 0),
             "level": level,
             "recent_games": recent_games,
-            "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+            "kda": kda,
+            "avg_k": avg_k,
+            "avg_d": avg_d,
+            "avg_a": avg_a,
+            "streak": streak,
             "top_champs": top_champs,
-            "ladder_rank": None, "ranked_flex": None, "mastery": None, "masteries": [],
-            "past_rank": None, "past_ranks": [],
+            "ladder_rank": None,
+            "ranked_flex": None,
+            "mastery": None,
+            "masteries": [],
+            "past_rank": None,
+            "past_ranks": [],
             "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
         }
         return response, 200
 
     except Exception as err:
         print(f"[API] Error: {err}")
-        return {"error": "Internal server error", "details": str(err)}, 500
+        import traceback
+        traceback.print_exc()
+        return {
+            "error": "Internal server error",
+            "details": str(err)
+        }, 500

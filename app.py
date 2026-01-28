@@ -2,9 +2,7 @@ from flask import Flask, request, jsonify
 from flask_cors import CORS
 import requests
 import os
-import json
 import urllib.parse
-import re
 import time
 from concurrent.futures import ThreadPoolExecutor
 
@@ -51,21 +49,22 @@ def player():
             return jsonify({"error": "Missing name or tag"}), 400
 
         api_key = os.environ.get('RIOT_API_KEY')
-        if api_key:
-            print("[API] Found RIOT_API_KEY in environment variables.")
-        else:
-            print("[API] CRITICAL: RIOT_API_KEY environment variable not found. The API calls will fail.")
+        if not api_key:
+            print("[API] CRITICAL: RIOT_API_KEY environment variable not found.")
             return jsonify({"error": "Server is not configured with a RIOT_API_KEY."}), 500
         
+        print(f"[API] Found RIOT_API_KEY: {api_key[:10]}...")  # Log primeros 10 chars
         headers = {"X-Riot-Token": api_key}
 
-        # 1. Get PUUID (Ruta crítica, no se puede paralelizar)
+        # 1. Get PUUID
         encoded_name = urllib.parse.quote(name)
         encoded_tag = urllib.parse.quote(tag)
         account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
         
+        print(f"[API] Fetching account: {account_url}")
         account_data = fetch_data(account_url, headers, timeout=10)
         if not account_data:
+            print("[API] Account not found")
             return jsonify({"error": "Riot Account not found or API error"}), 404
             
         puuid = account_data.get('puuid')
@@ -73,7 +72,7 @@ def player():
         print(f"[API] Step 1 took {time.time() - start_time:.2f}s: PUUID={puuid}")
 
         step2_start = time.time()
-        # 2. Fetch Summoner, Ranked, and Match IDs EN PARALELO
+        # 2. Fetch Summoner, Ranked, and Match IDs in parallel
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
@@ -87,11 +86,11 @@ def player():
             ranked_data = future_ranked.result() or []
             match_ids = future_match_ids.result() or []
 
-        print(f"[API] Step 2 took {time.time() - step2_start:.2f}s: Fetched summoner, ranked, and match IDs.")
+        print(f"[API] Step 2 took {time.time() - step2_start:.2f}s")
         level = summoner_data.get('summonerLevel')
         solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
 
-        # 3. Fetch Matches EN PARALELO
+        # 3. Fetch Matches in parallel
         step3_start = time.time()
         recent_games = []
         total_kills = 0
@@ -125,11 +124,9 @@ def player():
                                 champ_stats[c_name]['wins'] += 1
                             else:
                                 champ_stats[c_name]['losses'] += 1
-        print(f"[API] Step 3 took {time.time() - step3_start:.2f}s: Processed {len(match_ids)} matches.")
+        print(f"[API] Step 3 took {time.time() - step3_start:.2f}s")
 
-        # --- CALCULATE STATS ---
-        
-        # 1. Streak (Racha)
+        # Calculate stats
         streak = None
         if recent_games:
             current_streak_type = recent_games[0]
@@ -142,7 +139,6 @@ def player():
             if current_streak_count >= 3:
                 streak = f"{current_streak_count} {'Win' if current_streak_type == 'W' else 'Loss'} Streak"
 
-        # 2. KDA & Averages
         kda = None
         avg_k = None
         avg_d = None
@@ -154,31 +150,33 @@ def player():
             avg_a = round(total_assists / games_count, 1)
             kda = round((total_kills + total_assists) / total_deaths, 2) if total_deaths > 0 else round(total_kills + total_assists, 2)
 
-        # 3. Top Champs (from recent games)
         top_champs = []
         sorted_champs = sorted(champ_stats.items(), key=lambda item: item[1]['count'], reverse=True)
-        for name, stats in sorted_champs[:3]:
+        for champ_name, stats in sorted_champs[:3]:
             winrate = int((stats['wins'] / stats['count']) * 100)
             top_champs.append({
-                "name": name,
+                "name": champ_name,
                 "wins": stats['wins'],
                 "losses": stats['losses'],
                 "winrate": winrate
             })
 
-        # Handle unranked player
         if not solo_q_data:
             return jsonify({
-                "name": game_name if 'game_name' in locals() else name, 
-                "tag": tag, 
-                "tier": "UNRANKED", 
-                "rank": "", 
+                "name": game_name,
+                "tag": tag,
+                "tier": "UNRANKED",
+                "rank": "",
                 "lp": 0,
-                "wins": 0, 
-                "losses": 0, 
-                "level": level, 
+                "wins": 0,
+                "losses": 0,
+                "level": level,
                 "recent_games": recent_games,
-                "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+                "kda": kda,
+                "avg_k": avg_k,
+                "avg_d": avg_d,
+                "avg_a": avg_a,
+                "streak": streak,
                 "top_champs": top_champs,
                 "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
             })
@@ -193,13 +191,22 @@ def player():
             "losses": solo_q_data.get('losses', 0),
             "level": level,
             "recent_games": recent_games,
-            "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+            "kda": kda,
+            "avg_k": avg_k,
+            "avg_d": avg_d,
+            "avg_a": avg_a,
+            "streak": streak,
             "top_champs": top_champs,
-            # Datos no disponibles en este flujo
-            "ladder_rank": None, "ranked_flex": None, "mastery": None, "masteries": [],
-            "past_rank": None, "past_ranks": [],
+            "ladder_rank": None,
+            "ranked_flex": None,
+            "mastery": None,
+            "masteries": [],
+            "past_rank": None,
+            "past_ranks": [],
             "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
         }
+        
+        print(f"[API] Total request time: {time.time() - start_time:.2f}s")
         return jsonify(response)
 
     except Exception as err:
@@ -208,5 +215,5 @@ def player():
         traceback.print_exc()
         return jsonify({"error": "Internal server error", "details": str(err)}), 500
 
-if __name__ == '__main__':
-    app.run(debug=True)
+# IMPORTANTE: Para Vercel, NO uses app.run()
+# La app Flask se exporta automáticamente

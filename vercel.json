@@ -25,7 +25,7 @@
   ],
   "functions": {
     "app.py": {
-      "maxDuration": 15
+      "maxDuration": 60
     }
   }
 }
