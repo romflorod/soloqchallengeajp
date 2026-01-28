@@ -629,35 +629,66 @@ async function loadLeaderboard() {
   leaderboard.innerHTML = Array(players.length).fill('<div class="skeleton"></div>').join('');
 
   const fetchedData = [];
+  const CACHE_DURATION = 15 * 60 * 1000; // 15 minutos de caché en el navegador
 
   // Fetch players sequentially to avoid Rate Limiting
   for (const p of players) {
-    try {
-        const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
-        const res = await fetch(url);
-        const data = await res.json().catch(() => ({ detail: "Could not parse response from server." }));
+    const cacheKey = `soloq_v1_${p.summonerName}_${p.tag}`;
+    const cached = localStorage.getItem(cacheKey);
+    let data = null;
+    let usedCache = false;
 
-        if (!res.ok) {
-            console.error(`Server responded with ${res.status} for ${p.summonerName}`, data);
-            throw new Error(data.details || `Error fetching: Server responded with ${res.status}`);
-        }
-        fetchedData.push(data);
-    } catch (err) {
-        console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
-        fetchedData.push({
-            name: p.summonerName,
-            tag: p.tag,
-            tier: "UNRANKED",
-            rank: "",
-            lp: 0,
-            wins: 0,
-            losses: 0,
-            error: true,
-            opgg_url: `https://www.op.gg/summoners/euw/${encodeURIComponent(p.summonerName)}-${p.tag}`
-        });
+    // 1. Intentar cargar de caché local si es reciente
+    if (cached) {
+        try {
+            const parsed = JSON.parse(cached);
+            if (Date.now() - parsed.timestamp < CACHE_DURATION) {
+                data = parsed.data;
+                usedCache = true;
+                console.log(`[Frontend] Usando caché válida para ${p.summonerName}`);
+            }
+        } catch (e) { localStorage.removeItem(cacheKey); }
     }
-    // Pequeña pausa de 200ms entre peticiones para ser amables con la API
-    await new Promise(r => setTimeout(r, 200));
+
+    // 2. Si no hay caché válida, pedir a la API
+    if (!usedCache) {
+        try {
+            const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
+            const res = await fetch(url);
+            
+            if (res.status === 429) {
+                // Si nos limitan (429), intentamos usar la caché vieja si existe
+                if (cached) {
+                    console.warn(`[Frontend] Rate Limit para ${p.summonerName}. Usando caché antigua.`);
+                    data = JSON.parse(cached).data;
+                    data.fromCache = true; // Marca visual opcional
+                } else {
+                    throw new Error("Rate limit exceeded y no hay caché.");
+                }
+            } else if (!res.ok) {
+                throw new Error(`Server error: ${res.status}`);
+            } else {
+                data = await res.json();
+                // Guardar éxito en caché
+                localStorage.setItem(cacheKey, JSON.stringify({ timestamp: Date.now(), data: data }));
+            }
+        } catch (err) {
+            console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
+            // Fallback final: si falla y hay caché vieja, úsala
+            if (cached) {
+                data = JSON.parse(cached).data;
+            } else {
+                data = {
+                    name: p.summonerName, tag: p.tag, tier: "UNRANKED", rank: "", lp: 0,
+                    wins: 0, losses: 0, error: true,
+                    opgg_url: `https://www.op.gg/summoners/euw/${encodeURIComponent(p.summonerName)}-${p.tag}`
+                };
+            }
+        }
+        // Pequeña pausa solo si hicimos petición real
+        if (!usedCache) await new Promise(r => setTimeout(r, 500));
+    }
+    fetchedData.push(data);
   }
 
   // Sort by Score

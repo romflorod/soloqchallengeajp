@@ -113,7 +113,7 @@ def player():
         # 2. Fetch Summoner, Ranked, and Match IDs in parallel
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=5"
         mastery_url = f"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3"
         spectator_url = f"https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}"
 
@@ -151,7 +151,7 @@ def player():
         if match_ids:
             # Reducimos workers a 5 para ser más amables con el Rate Limit
             with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:10]]
+                futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:5]]
                 
                 for i, future in enumerate(futures):
                     details = future.result()
