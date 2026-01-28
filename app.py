@@ -16,6 +16,8 @@ def fetch_data(url, headers, timeout=5):
         return response.json()
     except requests.exceptions.RequestException as e:
         print(f"[API] Error fetching {url}: {e}")
+        if hasattr(e, 'response') and e.response is not None:
+            print(f"[API] Response Status: {e.response.status_code}, Body: {e.response.text}")
         return None
 
 def fetch_and_process_match(match_id, headers, puuid):
@@ -36,6 +38,7 @@ def fetch_and_process_match(match_id, headers, puuid):
             }
     return None
 
+@app.route('/', methods=['GET'])
 @app.route('/api/player', methods=['GET'])
 def player():
     try:
