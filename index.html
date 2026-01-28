@@ -560,37 +560,37 @@ async function loadLeaderboard() {
   // Mostrar skeletons mientras carga
   leaderboard.innerHTML = Array(players.length).fill('<div class="skeleton"></div>').join('');
 
-  const results = [];
+  const fetchedData = [];
 
-  // Fetch all players in parallel
-  const promises = players.map(async (p) => {
+  // Fetch players sequentially to avoid Rate Limiting
+  for (const p of players) {
     try {
-      const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
-      const res = await fetch(url);
-      const data = await res.json().catch(() => ({ detail: "Could not parse response from server." }));
+        const url = `${API_BASE}?name=${encodeURIComponent(p.summonerName)}&tag=${encodeURIComponent(p.tag)}`;
+        const res = await fetch(url);
+        const data = await res.json().catch(() => ({ detail: "Could not parse response from server." }));
 
-      if (!res.ok) {
-          console.error(`Server responded with ${res.status} for ${p.summonerName}`, data);
-          throw new Error(data.details || `Error fetching: Server responded with ${res.status}`);
-      }
-      return data;
+        if (!res.ok) {
+            console.error(`Server responded with ${res.status} for ${p.summonerName}`, data);
+            throw new Error(data.details || `Error fetching: Server responded with ${res.status}`);
+        }
+        fetchedData.push(data);
     } catch (err) {
-      console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
-      return {
-        name: p.summonerName,
-        tag: p.tag,
-        tier: "UNRANKED",
-        rank: "",
-        lp: 0,
-        wins: 0,
-        losses: 0,
-        error: true,
-        opgg_url: `https://www.op.gg/summoners/euw/${encodeURIComponent(p.summonerName)}-${p.tag}`
-      };
+        console.error(`[Frontend] Error loading ${p.summonerName}:`, err);
+        fetchedData.push({
+            name: p.summonerName,
+            tag: p.tag,
+            tier: "UNRANKED",
+            rank: "",
+            lp: 0,
+            wins: 0,
+            losses: 0,
+            error: true,
+            opgg_url: `https://www.op.gg/summoners/euw/${encodeURIComponent(p.summonerName)}-${p.tag}`
+        });
     }
-  });
-
-  const fetchedData = await Promise.all(promises);
+    // Pequeña pausa de 200ms entre peticiones para ser amables con la API
+    await new Promise(r => setTimeout(r, 200));
+  }
 
   // Sort by Score
   fetchedData.sort((a, b) => calculateScore(b) - calculateScore(a));

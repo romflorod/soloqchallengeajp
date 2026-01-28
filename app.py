@@ -9,20 +9,30 @@ from concurrent.futures import ThreadPoolExecutor
 app = Flask(__name__)
 CORS(app)
 
-def fetch_data(url, headers, timeout=5):
-    try:
-        response = requests.get(url, headers=headers, timeout=timeout)
-        response.raise_for_status()
-        return response.json(), None
-    except requests.exceptions.RequestException as e:
-        print(f"[API] Error fetching {url}: {e}")
-        status_code = 500
-        error_msg = str(e)
-        if hasattr(e, 'response') and e.response is not None:
-            print(f"[API] Response Status: {e.response.status_code}, Body: {e.response.text}")
-            status_code = e.response.status_code
-            error_msg = e.response.text
-        return None, {"status": status_code, "details": error_msg}
+def fetch_data(url, headers, timeout=5, retries=3):
+    for i in range(retries + 1):
+        try:
+            response = requests.get(url, headers=headers, timeout=timeout)
+            if response.status_code == 429:
+                retry_after = int(response.headers.get('Retry-After', 1))
+                print(f"[API] Rate limit 429. Retrying in {retry_after}s...")
+                time.sleep(retry_after)
+                continue
+            
+            response.raise_for_status()
+            return response.json(), None
+        except requests.exceptions.RequestException as e:
+            if i == retries:
+                print(f"[API] Error fetching {url}: {e}")
+                status_code = 500
+                error_msg = str(e)
+                if hasattr(e, 'response') and e.response is not None:
+                    print(f"[API] Response Status: {e.response.status_code}, Body: {e.response.text}")
+                    status_code = e.response.status_code
+                    error_msg = e.response.text
+                return None, {"status": status_code, "details": error_msg}
+            time.sleep(0.5)
+    return None, {"status": 500, "details": "Max retries exceeded"}
 
 def fetch_and_process_match(match_id, headers, puuid):
     """Fetches a single match and returns processed stats for the player."""
