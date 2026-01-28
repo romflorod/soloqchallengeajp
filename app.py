@@ -36,7 +36,7 @@ def fetch_and_process_match(match_id, headers, puuid):
             }
     return None
 
-@app.route('/api/player', methods=['GET'])
+@app.route('/', methods=['GET'])
 def player():
     try:
         start_time = time.time()
