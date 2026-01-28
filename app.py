@@ -54,7 +54,9 @@ def player():
 
         # 1. Get PUUID
         try:
-            account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
+            encoded_name = urllib.parse.quote(name)
+            encoded_tag = urllib.parse.quote(tag)
+            account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
             account_res = requests.get(account_url, headers=headers, timeout=10)
             account_res.raise_for_status() # Lanza un error para status 4xx/5xx
             puuid = account_res.json().get('puuid')

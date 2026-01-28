@@ -1,6 +1,29 @@
 import os
 import requests
 import urllib.parse
+from concurrent.futures import ThreadPoolExecutor
+
+def fetch_and_process_match(match_id, headers, puuid):
+    """Fetches a single match and returns processed stats for the player."""
+    try:
+        match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        match_res = requests.get(match_url, headers=headers, timeout=5)
+        if match_res.ok:
+            match_data = match_res.json()
+            info = match_data.get('info', {})
+            participants = info.get('participants', [])
+            player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
+            if player_stats:
+                return {
+                    "win": player_stats.get('win'),
+                    "kills": player_stats.get('kills', 0),
+                    "deaths": player_stats.get('deaths', 0),
+                    "assists": player_stats.get('assists', 0),
+                    "championName": player_stats.get('championName')
+                }
+    except requests.exceptions.RequestException as e:
+        print(f"[API] Failed to fetch match {match_id}: {e}")
+    return None
 
 def handler(req):
     """Handler for Vercel serverless functions"""
@@ -25,8 +48,10 @@ def handler(req):
         headers = {"X-Riot-Token": api_key}
 
         # 1. Get PUUID
-        account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{name}/{tag}"
-        account_res = requests.get(account_url, headers=headers)
+        encoded_name = urllib.parse.quote(name)
+        encoded_tag = urllib.parse.quote(tag)
+        account_url = f"https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/{encoded_name}/{encoded_tag}"
+        account_res = requests.get(account_url, headers=headers, timeout=10)
 
         print(f"[API] Account Response Status: {account_res.status_code}")
 
@@ -40,13 +65,13 @@ def handler(req):
 
         # 2. Get Summoner data (level)
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
-        summoner_res = requests.get(summoner_url, headers=headers)
+        summoner_res = requests.get(summoner_url, headers=headers, timeout=10)
         summoner_data = summoner_res.json() if summoner_res.ok else {}
         level = summoner_data.get('summonerLevel')
 
         # 3. Get Ranked data
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-        ranked_res = requests.get(ranked_url, headers=headers)
+        ranked_res = requests.get(ranked_url, headers=headers, timeout=10)
         ranked_data = ranked_res.json() if ranked_res.ok else []
         solo_q_data = next((q for q in ranked_data if q.get('queueType') == 'RANKED_SOLO_5x5'), None)
 
@@ -57,28 +82,24 @@ def handler(req):
         total_assists = 0
         champ_stats = {}
 
-        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&count=10"
-        match_ids_res = requests.get(match_ids_url, headers=headers)
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
+        match_ids_res = requests.get(match_ids_url, headers=headers, timeout=10)
         match_ids = match_ids_res.json() if match_ids_res.ok else []
 
-        for match_id in match_ids:
-            match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
-            match_res = requests.get(match_url, headers=headers)
-            if match_res.ok:
-                match_data = match_res.json()
-                info = match_data.get('info', {})
-                participants = info.get('participants', [])
-                player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
-                if player_stats:
-                    win = player_stats.get('win')
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_match = {executor.submit(fetch_and_process_match, match_id, headers, puuid): match_id for match_id in match_ids}
+            for future in future_to_match:
+                match_details = future.result()
+                if match_details:
+                    win = match_details.get('win')
                     recent_games.append("W" if win else "L")
-                    k = player_stats.get('kills', 0)
-                    d = player_stats.get('deaths', 0)
-                    a = player_stats.get('assists', 0)
+                    k = match_details.get('kills', 0)
+                    d = match_details.get('deaths', 0)
+                    a = match_details.get('assists', 0)
                     total_kills += k
                     total_deaths += d
                     total_assists += a
-                    c_name = player_stats.get('championName')
+                    c_name = match_details.get('championName')
                     if c_name not in champ_stats:
                         champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
                     champ_stats[c_name]['count'] += 1
