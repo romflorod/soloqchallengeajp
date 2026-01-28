@@ -6,9 +6,33 @@ from bs4 import BeautifulSoup
 import json
 import urllib.parse
 import re
+import time
+from concurrent.futures import ThreadPoolExecutor
 
 app = Flask(__name__)
 CORS(app)
+
+def fetch_and_process_match(match_id, headers, puuid):
+    """Fetches a single match and returns processed stats for the player."""
+    try:
+        match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
+        match_res = requests.get(match_url, headers=headers, timeout=5) # Add timeout
+        if match_res.ok:
+            match_data = match_res.json()
+            info = match_data.get('info', {})
+            participants = info.get('participants', [])
+            player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
+            if player_stats:
+                return {
+                    "win": player_stats.get('win'),
+                    "kills": player_stats.get('kills', 0),
+                    "deaths": player_stats.get('deaths', 0),
+                    "assists": player_stats.get('assists', 0),
+                    "championName": player_stats.get('championName')
+                }
+    except requests.exceptions.RequestException as e:
+        print(f"[API] Failed to fetch match {match_id}: {e}")
+    return None
 
 @app.route('/api/player', methods=['GET'])
 def player():
@@ -55,32 +79,28 @@ def player():
         total_assists = 0
         champ_stats = {} 
 
-        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&count=10"
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
         match_ids_res = requests.get(match_ids_url, headers=headers)
         match_ids = match_ids_res.json() if match_ids_res.ok else []
 
-        for match_id in match_ids:
-            match_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/{match_id}"
-            match_res = requests.get(match_url, headers=headers)
-            if match_res.ok:
-                match_data = match_res.json()
-                info = match_data.get('info', {})
-                participants = info.get('participants', [])
-                player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
-                if player_stats:
-                    win = player_stats.get('win')
+        with ThreadPoolExecutor(max_workers=10) as executor:
+            future_to_match = {executor.submit(fetch_and_process_match, match_id, headers, puuid): match_id for match_id in match_ids}
+            for future in future_to_match:
+                match_details = future.result()
+                if match_details:
+                    win = match_details.get('win')
                     recent_games.append("W" if win else "L")
                     
                     # Acumular stats para KDA
-                    k = player_stats.get('kills', 0)
-                    d = player_stats.get('deaths', 0)
-                    a = player_stats.get('assists', 0)
+                    k = match_details.get('kills', 0)
+                    d = match_details.get('deaths', 0)
+                    a = match_details.get('assists', 0)
                     total_kills += k
                     total_deaths += d
                     total_assists += a
                     
                     # Acumular stats de campeones
-                    c_name = player_stats.get('championName')
+                    c_name = match_details.get('championName')
                     if c_name not in champ_stats:
                         champ_stats[c_name] = {'wins': 0, 'losses': 0, 'count': 0}
                     champ_stats[c_name]['count'] += 1
