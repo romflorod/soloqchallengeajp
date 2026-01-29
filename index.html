@@ -521,6 +521,34 @@
         }
     }
 
+    /* Detailed Match History List */
+    .history-section-title {
+        font-size: 0.85rem;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: var(--text-muted);
+        margin: 1.5rem 0 0.5rem 0;
+        font-weight: 700;
+        border-top: 1px solid rgba(255,255,255,0.05);
+        padding-top: 1rem;
+    }
+    .history-list { display: flex; flex-direction: column; gap: 6px; }
+    .history-item {
+        display: flex; align-items: center; gap: 12px;
+        background: rgba(255,255,255,0.02);
+        padding: 8px 12px; border-radius: 8px;
+        border-left: 3px solid transparent;
+        transition: background 0.2s;
+    }
+    .history-item:hover { background: rgba(255,255,255,0.05); }
+    .history-item.win { border-left-color: #4ade80; background: linear-gradient(90deg, rgba(74, 222, 128, 0.05) 0%, rgba(255,255,255,0.02) 100%); }
+    .history-item.loss { border-left-color: #f87171; background: linear-gradient(90deg, rgba(248, 113, 113, 0.05) 0%, rgba(255,255,255,0.02) 100%); }
+    .h-champ-img { width: 32px; height: 32px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.1); }
+    .h-kda { font-weight: 700; font-size: 0.9rem; color: #f4f4f5; min-width: 80px; }
+    .h-stats { font-size: 0.75rem; color: #94a3b8; display: flex; gap: 8px; flex: 1; }
+    .h-items { display: flex; gap: 2px; }
+    .h-item { width: 22px; height: 22px; border-radius: 4px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); }
+
   </style>
 </head>
 <body>
@@ -786,6 +814,35 @@ async function loadLeaderboard() {
         champsHtml = '<div class="champ-row" style="font-style:italic; opacity:0.6">No hay datos recientes disponibles</div>';
     }
 
+    // Historial Detallado
+    let detailedHistoryHtml = '';
+    if (p.matches_history && p.matches_history.length > 0) {
+        detailedHistoryHtml = `<div class="history-section-title">Historial Reciente (${p.matches_history.length})</div><div class="history-list">`;
+        p.matches_history.forEach(m => {
+            const resultClass = m.win ? 'win' : 'loss';
+            const durationMin = Math.floor(m.gameDuration / 60);
+            
+            let itemsHtml = '<div class="h-items">';
+            m.items.forEach(item => {
+                if(item > 0) itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/14.2.1/img/item/${item}.png" class="h-item" title="Item ${item}">`;
+            });
+            itemsHtml += '</div>';
+
+            detailedHistoryHtml += `
+            <div class="history-item ${resultClass}">
+                <img src="${getChampImage(m.championName)}" class="h-champ-img" title="${m.championName}">
+                <div class="h-kda">${m.kills}/${m.deaths}/${m.assists}</div>
+                <div class="h-stats">
+                    <span>👾 ${m.cs}</span>
+                    <span>💰 ${(m.gold/1000).toFixed(1)}k</span>
+                    <span>⏱️ ${durationMin}m</span>
+                </div>
+                ${itemsHtml}
+            </div>`;
+        });
+        detailedHistoryHtml += '</div>';
+    }
+
     card.innerHTML = `
       <div class="card-main">
           <div class="rank-pos ${rankClass}">#${index + 1}</div>
@@ -835,6 +892,7 @@ async function loadLeaderboard() {
             <span>Winrate</span>
           </div>
           ${champsHtml}
+          ${detailedHistoryHtml}
           <a href="${p.opgg_url || '#'}" target="_blank" class="opgg-btn">Ver perfil completo en OP.GG ↗</a>
       </div>
     `;

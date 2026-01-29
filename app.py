@@ -55,11 +55,18 @@ def fetch_and_process_match(match_id, headers, puuid):
         player_stats = next((p for p in participants if p.get('puuid') == puuid), None)
         if player_stats:
             return {
+                "gameId": match_id,
+                "gameCreation": info.get('gameCreation', 0),
+                "gameDuration": info.get('gameDuration', 0),
                 "win": player_stats.get('win'),
                 "kills": player_stats.get('kills', 0),
                 "deaths": player_stats.get('deaths', 0),
                 "assists": player_stats.get('assists', 0),
-                "championName": player_stats.get('championName', 'Unknown')
+                "championName": player_stats.get('championName', 'Unknown'),
+                "cs": player_stats.get('totalMinionsKilled', 0) + player_stats.get('neutralMinionsKilled', 0),
+                "gold": player_stats.get('goldEarned', 0),
+                "damage": player_stats.get('totalDamageDealtToChampions', 0),
+                "items": [player_stats.get(f'item{i}', 0) for i in range(7)]
             }
     return None
 
@@ -114,7 +121,7 @@ def player():
         # 2. Fetch Summoner, Ranked, and Match IDs in parallel
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
-        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=5"
+        match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=10"
 
         def fetch_silent(u, h):
             d, _ = fetch_data(u, h)
@@ -140,15 +147,17 @@ def player():
         total_deaths = 0
         total_assists = 0
         champ_stats = {} 
+        matches_history = []
 
         if match_ids:
             # Reducimos workers a 5 para ser más amables con el Rate Limit
             with ThreadPoolExecutor(max_workers=5) as executor:
-                futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:5]]
+                futures = [executor.submit(fetch_and_process_match, mid, headers, puuid) for mid in match_ids[:10]]
                 
                 for i, future in enumerate(futures):
                     details = future.result()
                     if details:
+                        matches_history.append(details)
                         win = details.get('win')
                         recent_games.append("W" if win else "L")
                         
@@ -213,7 +222,8 @@ def player():
             "recent_games": recent_games,
             "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
             "top_champs": top_champs,
-            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
+            "matches_history": matches_history
         }
 
         if not solo_q_data:
