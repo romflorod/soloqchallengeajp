@@ -9,12 +9,18 @@
       "use": "@vercel/static"
     },
     {
+      "src": "wordle.html",
+      "use": "@vercel/static"
+    },
+    {
       "src": "img/**",
       "use": "@vercel/static"
     }
   ],
   "routes": [
     { "src": "/api/player", "dest": "app.py" },
+    { "src": "/api/champions", "dest": "app.py" },
+    { "src": "/wordle", "dest": "/wordle.html" },
     { "src": "/img/(.*)", "dest": "/img/$1" },
     { "src": "/(.*)", "dest": "/index.html" }
   ]

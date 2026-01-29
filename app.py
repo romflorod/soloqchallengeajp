@@ -14,6 +14,12 @@ CORS(app)
 PLAYER_CACHE = {}
 CACHE_DURATION = 3600  # 1 hora en segundos (ajusta este valor si quieres más/menos tiempo)
 
+# --- CHAMPIONS CACHE ---
+CHAMPIONS_CACHE = {
+    "data": [],
+    "timestamp": 0
+}
+
 def fetch_data(url, headers, timeout=5, retries=3):
     for i in range(retries + 1):
         try:
@@ -75,6 +81,32 @@ def fetch_and_process_match(match_id, headers, puuid):
     return None
 
 @app.route('/', methods=['GET'])
+@app.route('/api/champions', methods=['GET'])
+def get_champions():
+    global CHAMPIONS_CACHE
+    current_time = time.time()
+    
+    # Actualizar caché si está vacía o tiene más de 24 horas
+    if not CHAMPIONS_CACHE["data"] or current_time - CHAMPIONS_CACHE["timestamp"] > 86400:
+        try:
+            print("[API] Fetching champions list from DDragon...")
+            version_resp = requests.get("https://ddragon.leagueoflegends.com/api/versions.json")
+            version_resp.raise_for_status()
+            version = version_resp.json()[0]
+            
+            data_resp = requests.get(f"https://ddragon.leagueoflegends.com/cdn/{version}/data/en_US/champion.json")
+            data_resp.raise_for_status()
+            data = data_resp.json()
+            
+            champions = [champ["name"] for champ in data["data"].values()]
+            CHAMPIONS_CACHE = {"data": champions, "timestamp": current_time}
+            print(f"[API] Champions cached: {len(champions)}")
+        except Exception as e:
+            print(f"[API] Error fetching champions: {e}")
+            return jsonify({"error": "Failed to fetch champions"}), 500
+            
+    return jsonify(CHAMPIONS_CACHE["data"])
+
 @app.route('/api/player', methods=['GET'])
 def player():
     try:
