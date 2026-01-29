@@ -166,10 +166,10 @@
 
     .card-main {
       display: grid;
-      grid-template-columns: 40px 50px 1fr 90px 110px 24px;
-      grid-template-areas: "rank-pos rank-icon player-info winrate tier-info expand";
+      grid-template-columns: 40px 50px 1fr 90px 70px 110px 24px;
+      grid-template-areas: "rank-pos rank-icon player-info winrate kda tier-info expand";
       align-items: center;
-      gap: 1.5rem;
+      gap: 1rem;
       padding: 0.75rem 1.5rem;
       width: 100%;
     }
@@ -515,40 +515,34 @@
 
     /* KDA & Streak Section */
     .stats-column {
+      grid-area: kda;
       display: flex;
+      flex-direction: column;
       align-items: center;
-      gap: 10px;
-      margin-bottom: 1rem;
-      background: rgba(255,255,255,0.03);
-      padding: 10px;
-      border-radius: 8px;
+      justify-content: center;
+      gap: 4px;
     }
     
     .kda-badge {
       background: rgba(0, 0, 0, 0.3);
       border: 1px solid rgba(255,255,255,0.1);
-      padding: 4px 8px;
+      padding: 2px 8px;
       border-radius: 6px;
       font-size: 0.85rem;
       font-weight: 700;
       color: #f4f4f5;
-      margin-bottom: 4px;
     }
     .kda-badge.good { color: #4ade80; border-color: rgba(74, 222, 128, 0.3); }
     .kda-badge.perfect { color: #fbbf24; border-color: rgba(251, 191, 36, 0.3); box-shadow: 0 0 10px rgba(251, 191, 36, 0.1); }
     
-    .avg-kda { font-size: 0.7rem; color: #94a3b8; }
+    .avg-kda { font-size: 0.7rem; color: #94a3b8; display: none; }
     
     .streak-badge {
-      font-size: 0.75rem;
-      font-weight: 700;
-      margin-top: 4px;
-      padding: 2px 6px;
-      border-radius: 4px;
-      text-transform: uppercase;
+      font-size: 1rem;
+      text-transform: none;
     }
-    .streak-win { color: #fbbf24; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.1); }
-    .streak-loss { color: #f87171; background: rgba(248, 113, 113, 0.1); border: 1px solid rgba(248, 113, 113, 0.2); }
+    .streak-win { color: #fbbf24; text-shadow: 0 0 8px rgba(251, 191, 36, 0.5); }
+    .streak-loss { color: #94a3b8; }
 
     /* Loading State */
     .loading {
@@ -701,6 +695,10 @@
 <div id="leaderboard">
   <div class="loading">Cargando datos de la grieta...</div>
 </div>
+
+<!-- Audio SFX -->
+<audio id="sfx-hover" src="https://cdn.freesound.org/previews/274/274175_5121236-lq.mp3" preload="auto"></audio>
+<audio id="sfx-click" src="https://cdn.freesound.org/previews/448/448083_5121236-lq.mp3" preload="auto"></audio>
 
 <script>
 const players = [
@@ -1018,6 +1016,14 @@ function renderLeaderboard(dataToRender) {
     // Evento para expandir/contraer
     card.onclick = function(e) {
         if(e.target.closest('.opgg-btn')) return; // No expandir si click en botón
+
+        const clickSfx = document.getElementById('sfx-click');
+        if (clickSfx) {
+            clickSfx.currentTime = 0;
+            clickSfx.volume = 0.5;
+            clickSfx.play().catch(()=>{});
+        }
+
         this.classList.toggle('expanded');
     };
     card.style.animationDelay = `${index * 0.05}s`; // Stagger animation
@@ -1074,14 +1080,16 @@ function renderLeaderboard(dataToRender) {
     if (p.kda) {
         const kdaVal = parseFloat(p.kda);
         const kdaClass = kdaVal >= 4 ? 'perfect' : (kdaVal >= 3 ? 'good' : '');
+        let streakIcon = '';
+        if (p.streak) {
+            streakIcon = `<div class="streak-badge ${p.streak.includes('Win') ? 'streak-win' : 'streak-loss'}" title="${p.streak}">
+                ${p.streak.includes('Win') ? '🔥' : '❄️'}
+            </div>`;
+        }
         kdaHtml = `
             <div class="stats-column">
-                <div class="kda-badge ${kdaClass}">${p.kda} KDA</div>
-                ${p.avg_k ? `<div class="avg-kda">${p.avg_k} / ${p.avg_d} / ${p.avg_a}</div>` : ''}
-                ${p.streak ? `
-                    <div class="streak-badge ${p.streak.includes('Win') ? 'streak-win' : 'streak-loss'}">
-                        ${p.streak.includes('Win') ? '🔥' : '❄️'} ${p.streak}
-                    </div>` : ''}
+                <div class="kda-badge ${kdaClass}" title="KDA Ratio">${p.kda}</div>
+                ${streakIcon}
             </div>
         `;
     }
@@ -1219,13 +1227,13 @@ function renderLeaderboard(dataToRender) {
             </div>
           </div>
           ${donutHtml}
+          ${kdaHtml}
           <div class="expand-icon">▼</div>
       </div>
       <div class="card-details">
           <!-- Resumen movido al desplegable -->
           <div style="display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap;">
              ${topChampsHtml}
-             ${kdaHtml}
           </div>
 
           <div class="stats-title">
@@ -1245,7 +1253,16 @@ function renderLeaderboard(dataToRender) {
   });
 
   // --- ADD 3D TILT & SPOTLIGHT EFFECTS ---
-  document.querySelectorAll('.card').forEach(card => {
+  document.querySelectorAll('.card').forEach(card => {    
+    card.addEventListener('mouseenter', () => {
+        const hoverSfx = document.getElementById('sfx-hover');
+        if (hoverSfx) {
+            hoverSfx.currentTime = 0;
+            hoverSfx.volume = 0.2;
+            hoverSfx.play().catch(()=>{});
+        }
+    });
+
     card.addEventListener('mousemove', e => {
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
