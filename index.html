@@ -634,6 +634,15 @@
         .rank-flags {
             justify-content: center;
         }
+      .history-item {
+        flex-wrap: wrap; /* Permite que los elementos pasen a la siguiente línea */
+        row-gap: 8px; /* Espacio entre las líneas */
+      }
+      .h-items {
+        flex-basis: 100%; /* Ocupa toda la línea */
+        order: 10; /* Se asegura de que vaya al final */
+        justify-content: flex-start;
+      }
         .expand-icon { display: none; } /* Ocultar flecha en móvil para ahorrar espacio */
     }
 
