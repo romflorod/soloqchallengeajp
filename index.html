@@ -85,6 +85,7 @@
       display: flex;
       flex-direction: column;
       gap: 1.25rem;
+      perspective: 1500px;
     }
 
     /* Card Styles */
@@ -96,16 +97,29 @@
       border: 1px solid rgba(255, 255, 255, 0.03);
       border-radius: 1.25rem;
       display: flex;
-      flex-direction: column; /* Para el desplegable */
-      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      flex-direction: column;
+      transition: box-shadow 0.4s ease, border-color 0.4s ease, transform 0.2s cubic-bezier(0.25, 0.8, 0.25, 1);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       position: relative;
       overflow: hidden;
+      transform-style: preserve-3d;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: radial-gradient(circle 250px at var(--x, 50%) var(--y, 50%), rgba(255, 255, 255, 0.08), transparent 80%);
+      border-radius: inherit;
+      opacity: 0;
+      transition: opacity 0.4s;
+      pointer-events: none;
     }
 
     .card-main {
       display: grid;
-      grid-template-columns: 40px 60px 1fr auto 24px; /* Layout compacto tipo tabla */
+      grid-template-columns: 40px 50px 1fr 90px 110px 24px;
+      grid-template-areas: "rank-pos rank-icon player-info winrate tier-info expand";
       align-items: center;
       gap: 1.5rem;
       padding: 0.75rem 1.5rem;
@@ -113,11 +127,12 @@
     }
 
     .card:hover {
-      transform: translateY(-5px) scale(1.01);
       box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.6);
       border-color: rgba(255, 255, 255, 0.15);
       cursor: pointer;
-      /* Background color is handled by inline styles for splash art now */
+    }
+    .card:hover::before {
+      opacity: 1;
     }
     
     /* Streak Glow Effects */
@@ -225,6 +240,7 @@
 
     /* Rank Position */
     .rank-pos {
+      grid-area: rank-pos;
       font-size: 1.5rem;
       font-weight: 800;
       color: #52525b; /* Zinc 600 */
@@ -232,13 +248,27 @@
       text-align: center;
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.05em;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
     .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 15px rgba(251, 191, 36, 0.4); font-size: 1.8rem; }
     .rank-pos.top-2 { color: #e4e4e7; text-shadow: 0 0 15px rgba(255, 255, 255, 0.3); font-size: 1.6rem; }
     .rank-pos.top-3 { color: #d97706; text-shadow: 0 0 15px rgba(217, 119, 6, 0.3); font-size: 1.6rem; }
 
+    .rank-change {
+      font-size: 0.7rem;
+      font-weight: 700;
+      margin-left: 5px;
+      animation: fadeIn 0.5s 0.5s ease-out forwards;
+      opacity: 0;
+    }
+    .rank-change.up { color: #4ade80; }
+    .rank-change.down { color: #f87171; }
+
     /* Rank Icon */
     .rank-icon {
+      grid-area: rank-icon;
       width: 50px;
       height: 50px;
       object-fit: contain;
@@ -246,17 +276,16 @@
       transition: transform 0.3s ease, filter 0.3s ease;
     }
     .card:hover .rank-icon {
-      transform: scale(1.15) rotate(-5deg);
-      /* El brillo al hover también será dinámico */
+      /* El brillo se aplica dinámicamente */
     }
 
     /* Player Info */
     .player-info {
+      grid-area: player-info;
       flex: 1;
       display: flex;
       flex-direction: column;
       justify-content: center; 
-      min-width: 180px; /* Evita que se aplaste demasiado */
     }
 
     .summoner-name {
@@ -295,6 +324,7 @@
 
     /* Tier Info */
     .tier-info {
+      grid-area: tier-info;
       text-align: right;
       display: flex;
       flex-direction: column;
@@ -367,35 +397,44 @@
     .match-win { background-color: #4ade80; box-shadow: 0 0 10px rgba(74, 222, 128, 0.2); border: none; }
     .match-loss { background-color: #ef4444; opacity: 0.6; border: none; }
 
-    /* Winrate Bar */
-    .winrate-container {
+    /* Winrate Donut Chart */
+    .winrate-donut {
+      grid-area: winrate;
+      position: relative;
+      width: 80px;
+      height: 80px;
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-top: 6px;
-      font-size: 0.75rem;
-      color: var(--text-muted);
+      justify-content: center;
     }
-    
-    .progress-bg {
-      width: 100px;
-      height: 6px;
-      background: #334155;
-      border-radius: 2px;
-      overflow: hidden;
-    }
-    
-    .progress-fill {
+    .winrate-donut svg {
+      width: 100%;
       height: 100%;
-      background: linear-gradient(90deg, #38bdf8, #818cf8);
-      border-radius: 3px;
+      transform: rotate(-90deg);
     }
-    
-    .winrate-text {
-      font-weight: 600;
+    .winrate-donut .donut-bg {
+      fill: none;
+      stroke: rgba(255, 255, 255, 0.05);
+      stroke-width: 2.5;
     }
-    .winrate-text.high { color: #4ade80; }
-    .winrate-text.low { color: #94a3b8; }
+    .winrate-donut .donut-segment {
+      fill: none;
+      stroke: var(--winrate-color, #38bdf8);
+      stroke-width: 2.5;
+      stroke-linecap: round;
+      animation: fillDonut 1s 0.5s cubic-bezier(0.5, 0, 0.1, 1) forwards;
+    }
+    @keyframes fillDonut { from { stroke-dasharray: 0, 100; } }
+
+    .winrate-donut .donut-text {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      line-height: 1.1;
+    }
+    .winrate-donut .winrate-percent { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
+    .winrate-donut .winrate-label { font-size: 0.6rem; color: var(--text-muted); text-transform: uppercase; }
     
     /* Top Champions Section */
     .top-champs-container {
@@ -512,30 +551,28 @@
     
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
-        .card-main {
-            grid-template-columns: 30px 40px 1fr;
-            grid-template-rows: auto auto;
-            gap: 0.5rem 1rem;
-            padding: 1rem;
-        }
-        .rank-icon {
-            width: 40px;
-            height: 40px;
-        }
-        .player-info {
-            align-items: center;
-            text-align: center;
-            width: 100%;
-        }
-        .tier-info {
-            grid-column: 3;
-            grid-row: 1 / span 2;
-            align-items: flex-end;
-            text-align: right;
-            border: none;
-            margin: 0;
-            padding: 0;
-        }
+      .card-main {
+        grid-template-columns: 30px 1fr auto;
+        grid-template-rows: auto auto;
+        grid-template-areas: 
+          "rank-pos player-info tier-info"
+          "rank-icon winrate tier-info";
+        gap: 0.5rem 1rem;
+        padding: 1rem;
+      }
+      .winrate-donut {
+        width: 60px;
+        height: 60px;
+        justify-self: center;
+      }
+      .winrate-donut .winrate-percent { font-size: 0.9rem; }
+      .winrate-donut .winrate-label { font-size: 0.5rem; }
+      .player-info { align-items: flex-start; text-align: left; }
+      .tier-info { border: none; margin: 0; padding: 0; }
+      .rank-icon { width: 40px; height: 40px; }
+      .summoner-name { font-size: 1rem; }
+      .tier-text { font-size: 0.9rem; }
+      .lp-text { font-size: 0.8rem; }
         .rank-flags {
             justify-content: center;
         }
@@ -737,6 +774,8 @@ function calculateScore(p) {
     return score;
 }
 
+let previousRanks = {};
+
 async function loadLeaderboard() {
   await loadDDragonVersion(); // Cargar versión primero
   if (Object.keys(championMap).length === 0) await loadChampionData();
@@ -744,6 +783,16 @@ async function loadLeaderboard() {
   
   // Mostrar skeletons mientras carga
   leaderboard.innerHTML = Array(players.length).fill('<div class="skeleton"></div>').join('');
+
+  // Guardar ranking anterior para mostrar cambios
+  const existingCards = document.querySelectorAll('.card');
+  if (existingCards.length > 0) {
+    existingCards.forEach(card => {
+        const summonerId = card.dataset.summonerId;
+        const rankPos = card.querySelector('.rank-pos').textContent.replace(/[^0-9]/g, '');
+        if (summonerId && rankPos) previousRanks[summonerId] = parseInt(rankPos);
+    });
+  }
 
   const fetchedData = [];
   const CACHE_DURATION = 15 * 60 * 1000; // 15 minutos de caché en el navegador
@@ -820,7 +869,7 @@ async function loadLeaderboard() {
     const winrate = totalGames > 0 ? Math.round((p.wins / totalGames) * 100) : 0;
     const winrateColor = winrate >= 50 ? "high" : "low";
     
-    const card = document.createElement("div"); // Cambiado de <a> a <div>
+    const card = document.createElement("div");
     card.className = "card";
     
     // --- SPLASH ART BACKGROUND ---
@@ -852,6 +901,20 @@ async function loadLeaderboard() {
     
     // Determine rank class for styling top 3
     const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
+
+    // --- RANK CHANGE INDICATOR ---
+    const summonerId = `${p.name}-${p.tag}`;
+    card.dataset.summonerId = summonerId;
+    const oldRank = previousRanks[summonerId];
+    const newRank = index + 1;
+    let rankChangeHtml = '';
+    if (oldRank && oldRank !== newRank) {
+        if (newRank < oldRank) {
+            rankChangeHtml = `<span class="rank-change up">▲ ${oldRank - newRank}</span>`;
+        } else {
+            rankChangeHtml = `<span class="rank-change down">▼ ${newRank - oldRank}</span>`;
+        }
+    }
     
     // Top 3 Champs (Pool)
     const top3 = p.top_champs ? p.top_champs.slice(0, 3) : [];
@@ -970,25 +1033,33 @@ async function loadLeaderboard() {
     const tierColor = tierColors[p.tier.toUpperCase()] || "#71717a";
     const glowStyle = `filter: drop-shadow(0 0 25px ${tierColor}80);`; // 80 es transparencia hex
     
+    // --- WINRATE DONUT ---
+    const wrDonutColor = winrate >= 60 ? '#4ade80' : (winrate >= 50 ? '#38bdf8' : '#94a3b8');
+    const donutHtml = `
+        <div class="winrate-donut" title="${winrate}% Winrate (${p.wins}W ${p.losses}L)">
+            <svg viewBox="0 0 36 36">
+                <path class="donut-bg" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+                <path class="donut-segment" style="stroke-dasharray: ${winrate}, ${100 - winrate}; --winrate-color: ${wrDonutColor};" d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"></path>
+            </svg>
+            <div class="donut-text">
+                <span class="winrate-percent">${winrate}%</span>
+                <span class="winrate-label">Winrate</span>
+            </div>
+        </div>
+    `;
+
     // Icono de Rol Principal
     const mainRoleIcon = p.main_role ? `<img src="${getRoleIconUrl(p.main_role)}" class="main-role-icon" title="Main ${p.main_role}">` : '';
 
     card.innerHTML = `
       <div class="card-main">
-          <div class="rank-pos ${rankClass}">#${index + 1}</div>
+          <div class="rank-pos ${rankClass}">#${index + 1}${rankChangeHtml}</div>
           
           <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" style="${glowStyle}" onerror="this.style.display='none'">
 
           <div class="player-info">
             <div class="summoner-name">
                 ${p.name} <span class="summoner-tag">#${p.tag}</span> ${mainRoleIcon}
-            </div>
-            <div class="winrate-container">
-                <div class="progress-bg">
-                    <div class="progress-fill" style="width: ${winrate}%"></div>
-                </div>
-                <span class="winrate-text ${winrateColor}">${winrate}% WR</span>
-                <span style="opacity: 0.6; font-size: 0.75rem">(${p.wins}W ${p.losses}L)</span>
             </div>
             ${historyHtml}
           </div>
@@ -1010,6 +1081,7 @@ async function loadLeaderboard() {
                 ${p.fresh_blood ? '<span class="flag-badge" title="Nuevo en la liga">🩸 New</span>' : ''}
             </div>
           </div>
+          ${donutHtml}
           <div class="expand-icon">▼</div>
       </div>
       <div class="card-details">
@@ -1033,6 +1105,24 @@ async function loadLeaderboard() {
     } catch (renderErr) {
         console.error("Error rendering card for", p.name, renderErr);
     }
+  });
+
+  // --- ADD 3D TILT & SPOTLIGHT EFFECTS ---
+  leaderboard.querySelectorAll('.card').forEach(card => {
+    card.addEventListener('mousemove', e => {
+        const rect = card.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        
+        card.style.setProperty('--x', `${x}px`);
+        card.style.setProperty('--y', `${y}px`);
+        
+        const rotateX = (y / rect.height - 0.5) * -12;
+        const rotateY = (x / rect.width - 0.5) * 12;
+        
+        card.style.transform = `perspective(1500px) rotateX(${rotateX}deg) rotateY(${rotateY}deg) scale(1.03)`;
+    });
+    card.addEventListener('mouseleave', () => { card.style.transform = `perspective(1500px) rotateX(0) rotateY(0) scale(1)`; });
   });
 }
 
