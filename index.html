@@ -85,7 +85,7 @@
       border-radius: 1.25rem;
       display: flex;
       flex-direction: column; /* Para el desplegable */
-      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       position: relative;
       overflow: hidden;
@@ -96,7 +96,7 @@
       flex-wrap: wrap; /* Permite que el contenido baje en móviles */
       align-items: center;
       gap: 1.5rem;
-      padding: 1.25rem 2rem;
+      padding: 1.5rem 2rem;
       width: 100%;
     }
 
@@ -213,23 +213,28 @@
 
     /* Rank Position */
     .rank-pos {
-      font-size: 1.5rem;
-      font-weight: 800;
+      font-size: 2.5rem;
+      font-weight: 900;
       color: #52525b; /* Zinc 600 */
-      min-width: 2.5rem;
+      min-width: 3.5rem;
       text-align: center;
       font-variant-numeric: tabular-nums;
+      letter-spacing: -0.05em;
     }
-    .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 20px rgba(251, 191, 36, 0.2); font-size: 2rem; }
-    .rank-pos.top-2 { color: #e4e4e7; text-shadow: 0 0 20px rgba(255, 255, 255, 0.2); font-size: 1.8rem; }
-    .rank-pos.top-3 { color: #d97706; text-shadow: 0 0 20px rgba(217, 119, 6, 0.2); font-size: 1.8rem; }
+    .rank-pos.top-1 { color: #fbbf24; text-shadow: 0 0 30px rgba(251, 191, 36, 0.4); font-size: 3.5rem; }
+    .rank-pos.top-2 { color: #e4e4e7; text-shadow: 0 0 30px rgba(255, 255, 255, 0.3); font-size: 3rem; }
+    .rank-pos.top-3 { color: #d97706; text-shadow: 0 0 30px rgba(217, 119, 6, 0.3); font-size: 3rem; }
 
     /* Rank Icon */
     .rank-icon {
-      width: 56px;
-      height: 56px;
+      width: 90px;
+      height: 90px;
       object-fit: contain;
-      filter: drop-shadow(0 4px 6px rgba(0,0,0,0.3));
+      filter: drop-shadow(0 0 15px rgba(0,0,0,0.5));
+      transition: transform 0.3s ease;
+    }
+    .card:hover .rank-icon {
+      transform: scale(1.1) rotate(5deg);
     }
 
     /* Player Info */
@@ -242,7 +247,7 @@
     }
 
     .summoner-name {
-      font-size: 1.1rem;
+      font-size: 1.3rem;
       font-weight: 700;
       margin-bottom: 0.25rem;
       color: #fff;
@@ -280,7 +285,7 @@
     }
 
     .tier-text {
-      font-size: 1.1rem;
+      font-size: 1.4rem;
       font-weight: 800;
       color: #38bdf8;
       text-transform: uppercase;
@@ -289,7 +294,7 @@
     }
 
     .lp-text {
-      font-size: 0.9rem;
+      font-size: 1rem;
       font-weight: 500;
       color: #e4e4e7;
     }
@@ -354,8 +359,8 @@
     }
     
     .progress-bg {
-      width: 60px;
-      height: 3px;
+      width: 100px;
+      height: 6px;
       background: #334155;
       border-radius: 2px;
       overflow: hidden;
@@ -364,7 +369,7 @@
     .progress-fill {
       height: 100%;
       background: linear-gradient(90deg, #38bdf8, #818cf8);
-      border-radius: 2px;
+      border-radius: 3px;
     }
     
     .winrate-text {
@@ -393,8 +398,8 @@
       z-index: 10 !important;
     }
     .top-champ-img {
-      width: 40px;
-      height: 40px;
+      width: 48px;
+      height: 48px;
       border-radius: 50%;
       border: 2px solid var(--card-bg); /* Borde oscuro para separar */
       object-fit: cover;
