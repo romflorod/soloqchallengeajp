@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LoL Wordle - SoloQ Challenge</title>
+  <link rel="icon" href="img/logo.jpeg" type="image/jpeg">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --card-bg: rgba(15, 23, 42, 0.8);
+      --correct: #4ade80;
+      --present: #fbbf24;
+      --absent: #334155;
+      --text-main: #f4f4f5;
+    }
+    body {
+      font-family: 'Outfit', sans-serif;
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      background: linear-gradient(-45deg, #020617, #0f172a, #172554, #020617);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
+      margin: 0;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      min-height: 100vh;
+    }
+    @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+    h1 { text-transform: uppercase; margin-bottom: 1rem; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
+    
+    .game-container {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+    
+    .row { display: flex; gap: 5px; justify-content: center; }
+    
+    .tile {
+      width: 50px; height: 50px;
+      border: 2px solid #334155;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 1.5rem; font-weight: 800; text-transform: uppercase;
+      background: rgba(0,0,0,0.3);
+      transition: all 0.3s;
+    }
+    .tile.filled { border-color: #94a3b8; }
+    .tile.correct { background-color: var(--correct); border-color: var(--correct); color: #020617; }
+    .tile.present { background-color: var(--present); border-color: var(--present); color: #020617; }
+    .tile.absent { background-color: var(--absent); border-color: var(--absent); }
+
+    .keyboard { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
+    .key-row { display: flex; gap: 6px; justify-content: center; }
+    .key {
+      padding: 15px 10px; background: #334155; border-radius: 4px;
+      font-weight: 600; cursor: pointer; text-transform: uppercase;
+      min-width: 30px; text-align: center; user-select: none;
+    }
+    .key:hover { background: #475569; }
+    .key.correct { background: var(--correct); color: #020617; }
+    .key.present { background: var(--present); color: #020617; }
+    .key.absent { background: #1e293b; opacity: 0.5; }
+
+    .controls { margin-bottom: 20px; display: flex; gap: 10px; }
+    .btn {
+      padding: 10px 20px; border-radius: 8px; border: none; font-weight: 700; cursor: pointer;
+      background: #38bdf8; color: #020617; text-decoration: none;
+    }
+    .btn:hover { background: #7dd3fc; }
+    .btn-secondary { background: rgba(255,255,255,0.1); color: white; }
+
+    #message { height: 30px; font-weight: bold; color: #fbbf24; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+<h1>LoL Wordle</h1>
+
+<div class="controls">
+    <a href="/" class="btn btn-secondary">← Volver</a>
+    <button onclick="initGame()" class="btn">Nuevo Juego</button>
+</div>
+
+<div id="message"></div>
+
+<div id="board" class="game-container"></div>
+<div id="keyboard" class="keyboard"></div>
+
+<script>
+    let champions = [];
+    let targetName = "";
+    let cleanTarget = "";
+    let currentGuess = [];
+    let guesses = [];
+    let maxGuesses = 6;
+    let gameOver = false;
+
+    const API_BASE = window.location.hostname === 'localhost' ? "http://127.0.0.1:5000/api/champions" : "/api/champions";
+
+    async function loadChampions() {
+        try {
+            const res = await fetch(API_BASE);
+            champions = await res.json();
+            initGame();
+        } catch (e) {
+            document.getElementById('message').innerText = "Error cargando campeones.";
+        }
+    }
+
+    function cleanStr(str) {
+        return str.replace(/[^a-zA-Z]/g, '').toUpperCase();
+    }
+
+    function initGame() {
+        if(champions.length === 0) return;
+        
+        // Pick random champion
+        targetName = champions[Math.floor(Math.random() * champions.length)];
+        cleanTarget = cleanStr(targetName);
+        
+        // Reset state
+        currentGuess = [];
+        guesses = [];
+        gameOver = false;
+        document.getElementById('message').innerText = "";
+        
+        renderBoard();
+        renderKeyboard();
+    }
+
+    function renderBoard() {
+        const board = document.getElementById('board');
+        board.innerHTML = '';
+
+        // Render past guesses
+        guesses.forEach(guess => {
+            const row = document.createElement('div');
+            row.className = 'row';
+            
+            const targetArr = cleanTarget.split('');
+            const guessArr = guess.split('');
+            
+            // First pass: Correct (Green)
+            const status = new Array(guess.length).fill('absent');
+            const targetCounts = {};
+            
+            targetArr.forEach(char => targetCounts[char] = (targetCounts[char] || 0) + 1);
+
+            guessArr.forEach((char, i) => {
+                if (char === targetArr[i]) {
+                    status[i] = 'correct';
+                    targetCounts[char]--;
+                }
+            });
+
+            // Second pass: Present (Yellow)
+            guessArr.forEach((char, i) => {
+                if (status[i] !== 'correct' && targetCounts[char] > 0) {
+                    status[i] = 'present';
+                    targetCounts[char]--;
+                }
+            });
+
+            guessArr.forEach((char, i) => {
+                const tile = document.createElement('div');
+                tile.className = `tile ${status[i]}`;
+                tile.innerText = char;
+                row.appendChild(tile);
+                updateKey(char, status[i]);
+            });
+            board.appendChild(row);
+        });
+
+        // Render current guess row
+        if (!gameOver && guesses.length < maxGuesses) {
+            const row = document.createElement('div');
+            row.className = 'row';
+            for (let i = 0; i < cleanTarget.length; i++) {
+                const tile = document.createElement('div');
+                tile.className = 'tile' + (currentGuess[i] ? ' filled' : '');
+                tile.innerText = currentGuess[i] || '';
+                row.appendChild(tile);
+            }
+            board.appendChild(row);
+        }
+        
+        // Hint about length
+        if(guesses.length === 0) {
+            document.getElementById('message').innerText = `Adivina el campeón de ${cleanTarget.length} letras`;
+        }
+    }
+
+    const keysStatus = {};
+    function updateKey(char, status) {
+        const current = keysStatus[char];
+        if (status === 'correct') keysStatus[char] = 'correct';
+        else if (status === 'present' && current !== 'correct') keysStatus[char] = 'present';
+        else if (status === 'absent' && current !== 'correct' && current !== 'present') keysStatus[char] = 'absent';
+        renderKeyboard();
+    }
+
+    function renderKeyboard() {
+        const keyboard = document.getElementById('keyboard');
+        keyboard.innerHTML = '';
+        const rows = ["QWERTYUIOP", "ASDFGHJKL", "ZXCVBNM"];
+        
+        rows.forEach(rowStr => {
+            const rowDiv = document.createElement('div');
+            rowDiv.className = 'key-row';
+            rowStr.split('').forEach(char => {
+                const key = document.createElement('div');
+                key.className = `key ${keysStatus[char] || ''}`;
+                key.innerText = char;
+                key.onclick = () => handleInput(char);
+                rowDiv.appendChild(key);
+            });
+            if(rowStr === "ZXCVBNM") {
+                const back = document.createElement('div');
+                back.className = 'key';
+                back.innerText = '⌫';
+                back.onclick = () => handleInput('BACKSPACE');
+                rowDiv.appendChild(back);
+                
+                const enter = document.createElement('div');
+                enter.className = 'key';
+                enter.innerText = 'ENTER';
+                enter.onclick = () => handleInput('ENTER');
+                rowDiv.appendChild(enter);
+            }
+            keyboard.appendChild(rowDiv);
+        });
+    }
+
+    function handleInput(key) {
+        if (gameOver) return;
+
+        if (key === 'BACKSPACE') {
+            currentGuess.pop();
+        } else if (key === 'ENTER') {
+            if (currentGuess.length !== cleanTarget.length) {
+                document.getElementById('message').innerText = "¡Faltan letras!";
+                return;
+            }
+            const guessStr = currentGuess.join('');
+            guesses.push(guessStr);
+            currentGuess = [];
+            
+            if (guessStr === cleanTarget) {
+                gameOver = true;
+                document.getElementById('message').innerText = `¡VICTORIA! Era ${targetName}`;
+                confettiEffect();
+            } else if (guesses.length >= maxGuesses) {
+                gameOver = true;
+                document.getElementById('message').innerText = `GAME OVER. Era ${targetName}`;
+            }
+        } else if (currentGuess.length < cleanTarget.length && /^[A-Z]$/.test(key)) {
+            currentGuess.push(key);
+        }
+        renderBoard();
+    }
+
+    document.addEventListener('keydown', (e) => {
+        const key = e.key.toUpperCase();
+        if (key === 'ENTER' || key === 'BACKSPACE' || /^[A-Z]$/.test(key)) {
+            handleInput(key);
+        }
+    });
+    
+    function confettiEffect() {
+        // Simple visual effect could be added here
+        document.body.style.background = "linear-gradient(45deg, #064e3b, #020617)";
+    }
+
+    loadChampions();
+</script>
+</body>
+</html>
