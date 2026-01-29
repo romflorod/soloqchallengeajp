@@ -25,9 +25,8 @@
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
       color: var(--text-main);
-      background: linear-gradient(-45deg, #020617, #0f172a, #172554, #020617);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
+      background: linear-gradient(to bottom, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.95)), url('https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/images/backgrounds/clash-background-01.jpg') no-repeat center center fixed;
+      background-size: cover;
       margin: 0;
       padding: 40px 20px;
       display: flex;
@@ -36,12 +35,6 @@
       min-height: 100vh;
     }
     
-    @keyframes gradientBG {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-
     /* Custom Scrollbar */
     ::-webkit-scrollbar { width: 8px; }
     ::-webkit-scrollbar-track { background: #020617; }
@@ -62,12 +55,13 @@
     }
 
     .site-logo {
-      width: 60px;
-      height: 60px;
+      width: 110px;
+      height: 110px;
       border-radius: 50%;
       object-fit: cover;
-      border: 2px solid rgba(255,255,255,0.05);
-      box-shadow: 0 0 20px rgba(0,0,0,0.5);
+      border: 3px solid rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 30px rgba(56, 189, 248, 0.3);
+      transition: transform 0.3s ease;
     }
 
     .header-container {
@@ -76,7 +70,10 @@
       justify-content: center;
       gap: 20px;
       margin-bottom: 2rem;
+      flex-direction: column;
     }
+    
+    .site-logo:hover { transform: scale(1.05) rotate(3deg); }
 
     /* Controls */
     .controls {
@@ -596,6 +593,10 @@
     
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
+      .site-logo {
+        width: 80px;
+        height: 80px;
+      }
       h1 {
         font-size: 2rem; /* Título más pequeño en móvil */
       }
@@ -696,9 +697,11 @@
 
 <div class="header-container">
     <img src="img/logo.jpeg" alt="Logo" class="site-logo">
-    <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
-    <button onclick="loadLeaderboard(true)" class="refresh-btn" title="Forzar Actualización">🔄</button>
-    <a href="/wordle" class="refresh-btn" style="text-decoration:none; font-size:1rem;" title="Jugar LoL Wordle">🎮</a>
+    <div style="display:flex; align-items:center; gap:15px; flex-wrap:wrap; justify-content:center;">
+        <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
+        <button onclick="loadLeaderboard(true)" class="refresh-btn" title="Forzar Actualización">🔄</button>
+        <a href="/wordle" class="refresh-btn" style="text-decoration:none; font-size:1rem;" title="Jugar LoL Wordle">🎮</a>
+    </div>
 </div>
 
 <div class="controls">

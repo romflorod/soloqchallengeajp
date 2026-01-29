@@ -19,9 +19,8 @@
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
       color: var(--text-main);
-      background: linear-gradient(-45deg, #020617, #0f172a, #172554, #020617);
-      background-size: 400% 400%;
-      animation: gradientBG 15s ease infinite;
+      background: linear-gradient(to bottom, rgba(2, 6, 23, 0.85), rgba(2, 6, 23, 0.95)), url('https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-clash/global/default/images/backgrounds/clash-background-01.jpg') no-repeat center center fixed;
+      background-size: cover;
       margin: 0;
       padding: 20px;
       display: flex;
@@ -29,7 +28,6 @@
       align-items: center;
       min-height: 100vh;
     }
-    @keyframes gradientBG { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
 
     h1 { text-transform: uppercase; margin-bottom: 1rem; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
     
@@ -80,8 +78,19 @@
     .btn-secondary { background: rgba(255,255,255,0.1); color: white; }
 
     #message { height: 30px; font-weight: bold; color: #fbbf24; margin-bottom: 10px; }
+    
+    .site-logo {
+      width: 80px;
+      height: 80px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 3px solid rgba(56, 189, 248, 0.5);
+      box-shadow: 0 0 25px rgba(56, 189, 248, 0.3);
+      margin-bottom: 10px;
+    }
 
     @media (max-width: 600px) {
+        .site-logo { width: 60px; height: 60px; }
         h1 { font-size: 1.5rem; }
         .key { height: 45px; font-size: clamp(0.6rem, 2.5vw, 0.8rem); }
     }
@@ -89,6 +98,7 @@
 </head>
 <body>
 
+<img src="img/logo.jpeg" alt="Logo" class="site-logo">
 <h1>LoL Wordle</h1>
 
 <div class="controls">
