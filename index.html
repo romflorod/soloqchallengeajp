@@ -75,6 +75,54 @@
       align-items: center;
       justify-content: center;
       gap: 20px;
+      margin-bottom: 2rem;
+    }
+
+    /* Controls */
+    .controls {
+      width: 100%;
+      max-width: 800px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1.5rem;
+      gap: 1rem;
+      flex-wrap: wrap;
+    }
+
+    #search-box {
+      background: rgba(15, 23, 42, 0.8);
+      border: 1px solid rgba(255,255,255,0.1);
+      color: var(--text-main);
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      font-size: 0.9rem;
+      flex-grow: 1;
+      min-width: 200px;
+      transition: all 0.2s;
+    }
+    #search-box:focus {
+      border-color: #38bdf8;
+      box-shadow: 0 0 15px rgba(56, 189, 248, 0.2);
+      outline: none;
+    }
+    #search-box::placeholder { color: var(--text-muted); }
+
+    .sort-buttons {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      background: rgba(15, 23, 42, 0.8);
+      padding: 0.5rem;
+      border-radius: 0.75rem;
+      border: 1px solid rgba(255,255,255,0.1);
+    }
+    .sort-buttons span { font-size: 0.8rem; color: var(--text-muted); margin-right: 0.5rem; padding-left: 0.5rem; }
+    .sort-btn { background: transparent; border: none; color: var(--text-muted); padding: 0.5rem 0.75rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: all 0.2s; }
+    .sort-btn:hover { background: rgba(255,255,255,0.1); color: var(--text-main); }
+    .sort-btn.active { background: #38bdf8; color: #020617; box-shadow: 0 0 15px rgba(56, 189, 248, 0.3); }
+
+    .header-container {
       margin-bottom: 3rem;
     }
 
@@ -532,10 +580,10 @@
     .card { animation: fadeIn 0.5s ease-out forwards; opacity: 0; }
 
     .refresh-btn {
-      background: rgba(255, 255, 255, 0.1);
+      background: rgba(30, 41, 59, 0.8);
       border: none;
       color: #f8fafc;
-      width: 40px;
+      width: 40px; 
       height: 40px;
       border-radius: 50%;
       display: flex;
@@ -543,10 +591,13 @@
       justify-content: center;
       cursor: pointer;
       font-size: 1.2rem;
-      transition: background 0.2s;
+      transition: all 0.2s;
+      border: 1px solid rgba(255,255,255,0.1);
     }
     .refresh-btn:hover {
-      background: rgba(255, 255, 255, 0.2);
+      background: #38bdf8;
+      color: #020617;
+      transform: rotate(180deg);
     }
     
     /* Mobile Responsiveness */
@@ -559,6 +610,10 @@
           "rank-icon winrate tier-info";
         gap: 0.5rem 1rem;
         padding: 1rem;
+      }
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
       }
       .winrate-donut {
         width: 60px;
@@ -628,9 +683,19 @@
 <body>
 
 <div class="header-container">
-  <img src="img/logo.jpeg" alt="Logo" class="site-logo">
-  <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
-  <button onclick="loadLeaderboard()" class="refresh-btn" title="Actualizar datos">🔄</button>
+    <img src="img/logo.jpeg" alt="Logo" class="site-logo">
+    <h1 style="margin-bottom: 0;">🏆 SoloQ Challenge 🏆</h1>
+    <button onclick="loadLeaderboard(true)" class="refresh-btn" title="Forzar Actualización">🔄</button>
+</div>
+
+<div class="controls">
+    <input type="text" id="search-box" placeholder="Buscar jugador...">
+    <div class="sort-buttons">
+        <span>Ordenar por:</span>
+        <button data-sort="score" class="sort-btn active">Rango</button>
+        <button data-sort="winrate" class="sort-btn">Winrate</button>
+        <button data-sort="kda" class="sort-btn">KDA</button>
+    </div>
 </div>
 
 <div id="leaderboard">
@@ -774,25 +839,65 @@ function calculateScore(p) {
     return score;
 }
 
+let allPlayersData = [];
 let previousRanks = {};
+let currentSort = 'score';
+let currentSearch = '';
 
-async function loadLeaderboard() {
+// Add event listeners for controls
+document.addEventListener('DOMContentLoaded', () => {
+    const searchBox = document.getElementById('search-box');
+    searchBox.addEventListener('input', (e) => {
+        currentSearch = e.target.value.toLowerCase();
+        applyFiltersAndSort();
+    });
+
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelector('.sort-btn.active').classList.remove('active');
+            btn.classList.add('active');
+            currentSort = btn.dataset.sort;
+            applyFiltersAndSort();
+        });
+    });
+});
+
+function applyFiltersAndSort() {
+    let dataToProcess = [...allPlayersData];
+
+    // 1. Apply search filter
+    if (currentSearch) {
+        dataToProcess = dataToProcess.filter(p => 
+            p.name.toLowerCase().includes(currentSearch)
+        );
+    }
+
+    // 2. Apply sort
+    dataToProcess.sort((a, b) => {
+        switch (currentSort) {
+            case 'winrate':
+                const winrateA = (a.wins + a.losses) > 0 ? (a.wins / (a.wins + a.losses)) : 0;
+                const winrateB = (b.wins + b.losses) > 0 ? (b.wins / (b.wins + b.losses)) : 0;
+                return winrateB - winrateA;
+            case 'kda':
+                const kdaA = a.kda || 0;
+                const kdaB = b.kda || 0;
+                return kdaB - kdaA;
+            case 'score':
+            default:
+                return calculateScore(b) - calculateScore(a);
+        }
+    });
+
+    renderLeaderboard(dataToProcess);
+}
+
+async function loadLeaderboard(forceRefresh = false) {
   await loadDDragonVersion(); // Cargar versión primero
   if (Object.keys(championMap).length === 0) await loadChampionData();
   const leaderboard = document.getElementById("leaderboard");
   
-  // Mostrar skeletons mientras carga
   leaderboard.innerHTML = Array(players.length).fill('<div class="skeleton"></div>').join('');
-
-  // Guardar ranking anterior para mostrar cambios
-  const existingCards = document.querySelectorAll('.card');
-  if (existingCards.length > 0) {
-    existingCards.forEach(card => {
-        const summonerId = card.dataset.summonerId;
-        const rankPos = card.querySelector('.rank-pos').textContent.replace(/[^0-9]/g, '');
-        if (summonerId && rankPos) previousRanks[summonerId] = parseInt(rankPos);
-    });
-  }
 
   const fetchedData = [];
   const CACHE_DURATION = 15 * 60 * 1000; // 15 minutos de caché en el navegador
@@ -803,6 +908,11 @@ async function loadLeaderboard() {
     const cached = localStorage.getItem(cacheKey);
     let data = null;
     let usedCache = false;
+
+    if (forceRefresh) {
+        localStorage.removeItem(cacheKey);
+        console.log(`[Frontend] Cache forzada para ${p.summonerName}`);
+    }
 
     // 1. Intentar cargar de caché local si es reciente
     if (cached) {
@@ -857,12 +967,31 @@ async function loadLeaderboard() {
     fetchedData.push(data);
   }
 
-  // Sort by Score
-  fetchedData.sort((a, b) => calculateScore(b) - calculateScore(a));
+  allPlayersData = fetchedData;
 
-  leaderboard.innerHTML = "";
+  // Guardar el ranking actual para la próxima actualización
+  const newRanks = {};
+  const scoreSortedData = [...allPlayersData].sort((a, b) => calculateScore(b) - calculateScore(a));
+  scoreSortedData.forEach((p, index) => {
+      const summonerId = `${p.name}-${p.tag}`;
+      newRanks[summonerId] = index + 1;
+  });
+  if (!forceRefresh && Object.keys(previousRanks).length === 0) {
+      previousRanks = newRanks; // Guardar estado inicial si no había nada
+  }
 
-  fetchedData.forEach((p, index) => {
+  applyFiltersAndSort();
+
+  if (forceRefresh) {
+      previousRanks = newRanks; // Actualizar la base para el próximo refresco
+  }
+}
+
+function renderLeaderboard(dataToRender) {
+    const leaderboard = document.getElementById("leaderboard");
+    leaderboard.innerHTML = dataToRender.length === 0 ? `<div class="loading">No se encontraron jugadores.</div>` : "";
+
+    dataToRender.forEach((p, index) => {
     try {
 
     const totalGames = p.wins + p.losses;
@@ -891,7 +1020,7 @@ async function loadLeaderboard() {
         if(e.target.closest('.opgg-btn')) return; // No expandir si click en botón
         this.classList.toggle('expanded');
     };
-    card.style.animationDelay = `${index * 0.1}s`; // Stagger animation
+    card.style.animationDelay = `${index * 0.05}s`; // Stagger animation
     
     // Aplicar borde verde/rojo según la racha
     if (p.streak) {
@@ -899,20 +1028,28 @@ async function loadLeaderboard() {
         if (p.streak.includes("Loss")) card.classList.add("losing-streak");
     }
     
+    const originalRankIndex = allPlayersData
+        .slice()
+        .sort((a, b) => calculateScore(b) - calculateScore(a))
+        .findIndex(player => player.name === p.name && player.tag === p.tag);
+    
+    const rankToShow = originalRankIndex !== -1 ? originalRankIndex + 1 : "?";
+
     // Determine rank class for styling top 3
-    const rankClass = index === 0 ? "top-1" : index === 1 ? "top-2" : index === 2 ? "top-3" : "";
+    const rankClass = rankToShow === 1 ? "top-1" : rankToShow === 2 ? "top-2" : rankToShow === 3 ? "top-3" : "";
 
     // --- RANK CHANGE INDICATOR ---
-    const summonerId = `${p.name}-${p.tag}`;
-    card.dataset.summonerId = summonerId;
-    const oldRank = previousRanks[summonerId];
-    const newRank = index + 1;
     let rankChangeHtml = '';
-    if (oldRank && oldRank !== newRank) {
-        if (newRank < oldRank) {
-            rankChangeHtml = `<span class="rank-change up">▲ ${oldRank - newRank}</span>`;
-        } else {
-            rankChangeHtml = `<span class="rank-change down">▼ ${newRank - oldRank}</span>`;
+    if (currentSort === 'score') {
+        const summonerId = `${p.name}-${p.tag}`;
+        const oldRank = previousRanks[summonerId];
+        const newRank = rankToShow;
+        if (oldRank && oldRank !== newRank) {
+            if (newRank < oldRank) {
+                rankChangeHtml = `<span class="rank-change up">▲ ${oldRank - newRank}</span>`;
+            } else {
+                rankChangeHtml = `<span class="rank-change down">▼ ${newRank - oldRank}</span>`;
+            }
         }
     }
     
@@ -1053,7 +1190,7 @@ async function loadLeaderboard() {
 
     card.innerHTML = `
       <div class="card-main">
-          <div class="rank-pos ${rankClass}">#${index + 1}${rankChangeHtml}</div>
+          <div class="rank-pos ${rankClass}">#${rankToShow}${rankChangeHtml}</div>
           
           <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" style="${glowStyle}" onerror="this.style.display='none'">
 
@@ -1103,12 +1240,12 @@ async function loadLeaderboard() {
     leaderboard.appendChild(card);
 
     } catch (renderErr) {
-        console.error("Error rendering card for", p.name, renderErr);
+        console.error("Error al renderizar la tarjeta para", p.name, renderErr);
     }
   });
 
   // --- ADD 3D TILT & SPOTLIGHT EFFECTS ---
-  leaderboard.querySelectorAll('.card').forEach(card => {
+  document.querySelectorAll('.card').forEach(card => {
     card.addEventListener('mousemove', e => {
         const rect = card.getBoundingClientRect();
         const x = e.clientX - rect.left;
@@ -1126,7 +1263,7 @@ async function loadLeaderboard() {
   });
 }
 
-loadLeaderboard();
+document.addEventListener('DOMContentLoaded', () => loadLeaderboard());
 </script>
 
 </body>
