@@ -43,10 +43,11 @@
     .row { display: flex; gap: 5px; justify-content: center; }
     
     .tile {
-      width: 50px; height: 50px;
+      width: 13vw; height: 13vw; /* Responsivo */
+      max-width: 50px; max-height: 50px;
       border: 2px solid #334155;
       display: flex; align-items: center; justify-content: center;
-      font-size: 1.5rem; font-weight: 800; text-transform: uppercase;
+      font-size: clamp(1rem, 5vw, 1.5rem); font-weight: 800; text-transform: uppercase;
       background: rgba(0,0,0,0.3);
       transition: all 0.3s;
     }
@@ -55,12 +56,14 @@
     .tile.present { background-color: var(--present); border-color: var(--present); color: #020617; }
     .tile.absent { background-color: var(--absent); border-color: var(--absent); }
 
-    .keyboard { display: flex; flex-direction: column; gap: 8px; margin-top: 20px; }
-    .key-row { display: flex; gap: 6px; justify-content: center; }
+    .keyboard { display: flex; flex-direction: column; gap: 6px; margin-top: 20px; width: 100%; max-width: 500px; }
+    .key-row { display: flex; gap: 4px; justify-content: center; width: 100%; }
     .key {
-      padding: 15px 10px; background: #334155; border-radius: 4px;
+      flex: 1; /* Ocupar espacio disponible */
+      height: 50px; display: flex; align-items: center; justify-content: center;
+      background: #334155; border-radius: 4px;
       font-weight: 600; cursor: pointer; text-transform: uppercase;
-      min-width: 30px; text-align: center; user-select: none;
+      user-select: none; font-size: 0.9rem;
     }
     .key:hover { background: #475569; }
     .key.correct { background: var(--correct); color: #020617; }
@@ -76,6 +79,12 @@
     .btn-secondary { background: rgba(255,255,255,0.1); color: white; }
 
     #message { height: 30px; font-weight: bold; color: #fbbf24; margin-bottom: 10px; }
+
+    @media (max-width: 600px) {
+        h1 { font-size: 1.5rem; }
+        .game-container { gap: 6px; }
+        .key { height: 45px; font-size: 0.8rem; }
+    }
   </style>
 </head>
 <body>

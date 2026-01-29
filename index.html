@@ -596,18 +596,26 @@
     
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
+      h1 {
+        font-size: 2rem; /* Título más pequeño en móvil */
+      }
       .card-main {
-        grid-template-columns: 30px 1fr auto;
+        grid-template-columns: 40px 1fr auto;
         grid-template-rows: auto auto;
         grid-template-areas: 
           "rank-pos player-info tier-info"
-          "rank-icon winrate tier-info";
-        gap: 0.5rem 1rem;
+          "rank-icon kda winrate"; /* Añadido KDA al layout móvil */
+        gap: 0.75rem 0.5rem;
         padding: 1rem;
       }
       .controls {
         flex-direction: column;
         align-items: stretch;
+      }
+      .sort-buttons {
+        overflow-x: auto; /* Scroll horizontal si no caben los botones */
+        white-space: nowrap;
+        padding-bottom: 5px; /* Espacio para scrollbar */
       }
       .winrate-donut {
         width: 60px;
@@ -617,7 +625,8 @@
       .winrate-donut .winrate-percent { font-size: 0.9rem; }
       .winrate-donut .winrate-label { font-size: 0.5rem; }
       .player-info { align-items: flex-start; text-align: left; }
-      .tier-info { border: none; margin: 0; padding: 0; }
+      /* Tier info se mueve arriba a la derecha */
+      .tier-info { grid-area: tier-info; border: none; margin: 0; padding: 0; align-items: flex-end; }
       .rank-icon { width: 60px; height: 60px; }
       .summoner-name { font-size: 1rem; }
       .tier-text { font-size: 0.9rem; }
