@@ -166,7 +166,7 @@
 
     .card-main {
       display: grid;
-      grid-template-columns: 40px 50px 1fr 90px 70px 110px 24px;
+      grid-template-columns: 40px 80px 1fr 90px 70px 110px 24px;
       grid-template-areas: "rank-pos rank-icon player-info winrate kda tier-info expand";
       align-items: center;
       gap: 1rem;
@@ -317,8 +317,8 @@
     /* Rank Icon */
     .rank-icon {
       grid-area: rank-icon;
-      width: 50px;
-      height: 50px;
+      width: 80px;
+      height: 80px;
       object-fit: contain;
       /* El filtro se aplica dinámicamente por JS */
       transition: transform 0.3s ease, filter 0.3s ease;
@@ -618,7 +618,7 @@
       .winrate-donut .winrate-label { font-size: 0.5rem; }
       .player-info { align-items: flex-start; text-align: left; }
       .tier-info { border: none; margin: 0; padding: 0; }
-      .rank-icon { width: 40px; height: 40px; }
+      .rank-icon { width: 60px; height: 60px; }
       .summoner-name { font-size: 1rem; }
       .tier-text { font-size: 0.9rem; }
       .lp-text { font-size: 0.8rem; }
