@@ -597,6 +597,11 @@ function calculateScore(p) {
         score += (5 - r) * 100;
     }
     score += p.lp;
+    
+    // Desempate: Sumar una fracción del KDA para que no afecte al orden de LP
+    if (p.kda) {
+        score += parseFloat(p.kda) / 100;
+    }
     return score;
 }
 

@@ -205,53 +205,41 @@ def player():
                 "winrate": winrate
             })
 
+        # Construir respuesta común
+        response = {
+            "name": game_name,
+            "tag": tag,
+            "level": level,
+            "recent_games": recent_games,
+            "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
+            "top_champs": top_champs,
+            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+        }
+
         if not solo_q_data:
-            return jsonify({
-                "name": game_name,
-                "tag": tag,
+            # Datos para Unranked
+            response.update({
                 "tier": "UNRANKED",
                 "rank": "",
                 "lp": 0,
                 "wins": 0,
-                "losses": 0,
-                "level": level,
-                "recent_games": recent_games,
-                "kda": kda,
-                "avg_k": avg_k,
-                "avg_d": avg_d,
-                "avg_a": avg_a,
-                "streak": streak,
-                "top_champs": top_champs,
-                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
+                "losses": 0
             })
-
-        response = {
-            "name": game_name,
-            "tag": tag,
-            "tier": solo_q_data.get('tier'),
-            "rank": solo_q_data.get('rank'),
-            "lp": solo_q_data.get('leaguePoints', 0),
-            "wins": solo_q_data.get('wins', 0),
-            "losses": solo_q_data.get('losses', 0),
-            "level": level,
-            "recent_games": recent_games,
-            "kda": kda,
-            "avg_k": avg_k,
-            "avg_d": avg_d,
-            "avg_a": avg_a,
-            "streak": streak,
-            "top_champs": top_champs,
-            "ladder_rank": None,
-            "ranked_flex": None,
-            "past_rank": None,
-            "past_ranks": [],
-            "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
-            # Nuevos datos de Ranked SoloQ
-            "hot_streak": solo_q_data.get('hotStreak', False),
-            "veteran": solo_q_data.get('veteran', False),
-            "fresh_blood": solo_q_data.get('freshBlood', False),
-            "inactive": solo_q_data.get('inactive', False)
-        }
+        else:
+            # Datos para Ranked
+            response.update({
+                "tier": solo_q_data.get('tier'),
+                "rank": solo_q_data.get('rank'),
+                "lp": solo_q_data.get('leaguePoints', 0),
+                "wins": solo_q_data.get('wins', 0),
+                "losses": solo_q_data.get('losses', 0),
+                "ladder_rank": None, "ranked_flex": None,
+                "past_rank": None, "past_ranks": [],
+                "hot_streak": solo_q_data.get('hotStreak', False),
+                "veteran": solo_q_data.get('veteran', False),
+                "fresh_blood": solo_q_data.get('freshBlood', False),
+                "inactive": solo_q_data.get('inactive', False)
+            })
         
         # SAVE TO CACHE
         PLAYER_CACHE[cache_key] = {
