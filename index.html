@@ -548,6 +548,21 @@
     .h-stats { font-size: 0.75rem; color: #94a3b8; display: flex; gap: 8px; flex: 1; }
     .h-items { display: flex; gap: 2px; }
     .h-item { width: 22px; height: 22px; border-radius: 4px; background: #0f172a; border: 1px solid rgba(255,255,255,0.1); }
+    
+    .h-role-icon { width: 20px; height: 20px; opacity: 0.7; filter: invert(1); }
+    .h-meta { display: flex; flex-direction: column; gap: 2px; min-width: 60px; }
+    .h-cs-min { font-size: 0.65rem; color: #64748b; }
+    
+    .multikill-badge {
+        font-size: 0.6rem; font-weight: 800; padding: 1px 4px; border-radius: 3px;
+        text-transform: uppercase; margin-left: auto;
+    }
+    .penta { background: linear-gradient(45deg, #ef4444, #b91c1c); color: white; border: 1px solid #fca5a5; }
+    .quadra { background: #f59e0b; color: white; }
+    .triple { background: #3b82f6; color: white; }
+    
+    /* Ajuste para que quepa todo */
+    .history-item { gap: 8px; padding: 6px 10px; }
 
   </style>
 </head>
@@ -580,6 +595,18 @@ const isLocal = window.location.protocol === 'file:' || window.location.hostname
 const API_BASE = isLocal ? "http://127.0.0.1:5000/api/player" : "/api/player";
 
 let championMap = {};
+let ddragonVersion = '14.2.1'; // Valor por defecto
+
+async function loadDDragonVersion() {
+    try {
+        const res = await fetch('https://ddragon.leagueoflegends.com/api/versions.json');
+        const versions = await res.json();
+        ddragonVersion = versions[0];
+        console.log("Using DDragon version:", ddragonVersion);
+    } catch (e) {
+        console.error("Error loading DDragon version", e);
+    }
+}
 
 const tierValues = {
   "CHALLENGER": 90, "GRANDMASTER": 80, "MASTER": 70,
@@ -602,7 +629,7 @@ function getRankIcon(tier) {
 
 async function loadChampionData() {
     try {
-        const res = await fetch('https://ddragon.leagueoflegends.com/cdn/14.2.1/data/en_US/champion.json');
+        const res = await fetch(`https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/data/en_US/champion.json`);
         const data = await res.json();
         for (const champName in data.data) {
             const champ = data.data[champName];
@@ -634,7 +661,7 @@ function getChampImage(name) {
     if (exceptions[cleanName]) cleanName = exceptions[cleanName];
     if (exceptions[name]) cleanName = exceptions[name]; // Check original name too
     
-    return `https://ddragon.leagueoflegends.com/cdn/14.2.1/img/champion/${cleanName}.png`;
+    return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${cleanName}.png`;
 }
 
 function calculateScore(p) {
@@ -653,6 +680,7 @@ function calculateScore(p) {
 }
 
 async function loadLeaderboard() {
+  await loadDDragonVersion(); // Cargar versión primero
   if (Object.keys(championMap).length === 0) await loadChampionData();
   const leaderboard = document.getElementById("leaderboard");
   
@@ -821,23 +849,42 @@ async function loadLeaderboard() {
         p.matches_history.forEach(m => {
             const resultClass = m.win ? 'win' : 'loss';
             const durationMin = Math.floor(m.gameDuration / 60);
+            const csPerMin = (m.cs / (m.gameDuration / 60)).toFixed(1);
+            
+            // Icono de Rol
+            let roleIcon = '';
+            if (m.teamPosition && m.teamPosition !== '') {
+                const pos = m.teamPosition.toLowerCase();
+                // CommunityDragon tiene iconos geniales para posiciones
+                roleIcon = `<img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${pos === 'utility' ? 'support' : pos === 'middle' ? 'mid' : pos}.svg" class="h-role-icon" title="${m.teamPosition}">`;
+            }
+            
+            // Multikill Badge
+            let badgeHtml = '';
+            if (m.pentaKills > 0) badgeHtml = '<div class="multikill-badge penta">PENTA</div>';
+            else if (m.quadraKills > 0) badgeHtml = '<div class="multikill-badge quadra">QUADRA</div>';
+            else if (m.tripleKills > 0) badgeHtml = '<div class="multikill-badge triple">TRIPLE</div>';
             
             let itemsHtml = '<div class="h-items">';
             m.items.forEach(item => {
-                if(item > 0) itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/14.2.1/img/item/${item}.png" class="h-item" title="Item ${item}">`;
+                if(item > 0) itemsHtml += `<img src="https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/item/${item}.png" class="h-item" title="Item ${item}">`;
             });
             itemsHtml += '</div>';
 
             detailedHistoryHtml += `
             <div class="history-item ${resultClass}">
+                ${roleIcon}
                 <img src="${getChampImage(m.championName)}" class="h-champ-img" title="${m.championName}">
                 <div class="h-kda">${m.kills}/${m.deaths}/${m.assists}</div>
-                <div class="h-stats">
-                    <span>👾 ${m.cs}</span>
-                    <span>💰 ${(m.gold/1000).toFixed(1)}k</span>
-                    <span>⏱️ ${durationMin}m</span>
+                <div class="h-meta">
+                    <div class="h-stats">
+                        <span>👾 ${m.cs}</span>
+                        <span>💰 ${(m.gold/1000).toFixed(1)}k</span>
+                    </div>
+                    <div class="h-cs-min">(${csPerMin} cs/m) • ${durationMin}m</div>
                 </div>
                 ${itemsHtml}
+                ${badgeHtml}
             </div>`;
         });
         detailedHistoryHtml += '</div>';

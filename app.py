@@ -66,7 +66,11 @@ def fetch_and_process_match(match_id, headers, puuid):
                 "cs": player_stats.get('totalMinionsKilled', 0) + player_stats.get('neutralMinionsKilled', 0),
                 "gold": player_stats.get('goldEarned', 0),
                 "damage": player_stats.get('totalDamageDealtToChampions', 0),
-                "items": [player_stats.get(f'item{i}', 0) for i in range(7)]
+                "items": [player_stats.get(f'item{i}', 0) for i in range(7)],
+                "teamPosition": player_stats.get('teamPosition', ''),
+                "pentaKills": player_stats.get('pentaKills', 0),
+                "quadraKills": player_stats.get('quadraKills', 0),
+                "tripleKills": player_stats.get('tripleKills', 0)
             }
     return None
 
