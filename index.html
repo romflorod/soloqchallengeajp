@@ -25,9 +25,9 @@
       font-family: 'Outfit', sans-serif;
       background-color: var(--bg-dark);
       color: var(--text-main);
-      background-image: 
-        radial-gradient(circle at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%),
-        linear-gradient(180deg, rgba(0,0,0,0) 0%, var(--bg-dark) 100%);
+      background: linear-gradient(-45deg, #020617, #0f172a, #172554, #020617);
+      background-size: 400% 400%;
+      animation: gradientBG 15s ease infinite;
       margin: 0;
       padding: 40px 20px;
       display: flex;
@@ -35,6 +35,18 @@
       align-items: center;
       min-height: 100vh;
     }
+    
+    @keyframes gradientBG {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar { width: 8px; }
+    ::-webkit-scrollbar-track { background: #020617; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 4px; }
+    ::-webkit-scrollbar-thumb:hover { background: #475569; }
 
     h1 {
       font-size: 3.5rem;
@@ -81,11 +93,11 @@
       color: inherit; /* Mantener color de texto */
       background-color: var(--card-bg);
       backdrop-filter: blur(12px);
-      border: 1px solid rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.03);
       border-radius: 1.25rem;
       display: flex;
       flex-direction: column; /* Para el desplegable */
-      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
       position: relative;
       overflow: hidden;
@@ -101,11 +113,11 @@
     }
 
     .card:hover {
-      transform: translateY(-4px);
-      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
-      border-color: rgba(255, 255, 255, 0.2);
+      transform: translateY(-5px) scale(1.01);
+      box-shadow: 0 20px 40px -5px rgba(0, 0, 0, 0.6);
+      border-color: rgba(255, 255, 255, 0.15);
       cursor: pointer;
-      background-color: rgba(30, 41, 59, 0.8);
+      /* Background color is handled by inline styles for splash art now */
     }
     
     /* Streak Glow Effects */
@@ -664,7 +676,7 @@ async function loadChampionData() {
     }
 }
 
-function getChampImage(name) {
+function getCleanChampName(name) {
     if (!name) return "";
     // Normalización básica para DataDragon (eliminar espacios, puntos, apóstrofes)
     let cleanName = name.replace(/[^a-zA-Z]/g, '');
@@ -684,8 +696,12 @@ function getChampImage(name) {
     
     if (exceptions[cleanName]) cleanName = exceptions[cleanName];
     if (exceptions[name]) cleanName = exceptions[name]; // Check original name too
-    
-    return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${cleanName}.png`;
+    return cleanName;
+}
+
+function getChampImage(name) {
+    const cleanName = getCleanChampName(name);
+    return cleanName ? `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${cleanName}.png` : "";
 }
 
 function getRoleIconUrl(position) {
@@ -806,6 +822,21 @@ async function loadLeaderboard() {
     
     const card = document.createElement("div"); // Cambiado de <a> a <div>
     card.className = "card";
+    
+    // --- SPLASH ART BACKGROUND ---
+    if (p.top_champs && p.top_champs.length > 0) {
+        const topChamp = p.top_champs[0].name;
+        const cleanName = getCleanChampName(topChamp);
+        card.style.backgroundImage = `
+            linear-gradient(to right, 
+                rgba(15, 23, 42, 0.98) 0%, 
+                rgba(15, 23, 42, 0.92) 40%, 
+                rgba(15, 23, 42, 0.6) 100%),
+            url(https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${cleanName}_0.jpg)`;
+        card.style.backgroundSize = 'cover';
+        card.style.backgroundPosition = 'center 20%';
+    }
+
     // Evento para expandir/contraer
     card.onclick = function(e) {
         if(e.target.closest('.opgg-btn')) return; // No expandir si click en botón
