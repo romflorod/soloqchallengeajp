@@ -29,6 +29,16 @@
       align-items: center;
       min-height: 100vh;
     }
+    
+    /* Texture Overlay */
+    body::after {
+      content: "";
+      position: fixed;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)' opacity='0.05'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: -1;
+    }
 
     h1 { text-transform: uppercase; margin-bottom: 1rem; text-shadow: 0 0 20px rgba(56, 189, 248, 0.5); }
     
@@ -45,16 +55,38 @@
       /* Ajuste para que quepan nombres largos como Fiddlesticks */
       width: clamp(20px, 7vw, 50px);
       height: clamp(20px, 7vw, 50px);
-      border: 2px solid #334155;
+      border: 2px solid rgba(255,255,255,0.1);
       display: flex; align-items: center; justify-content: center;
       font-size: clamp(0.8rem, 3.5vw, 1.5rem); font-weight: 800; text-transform: uppercase;
-      background: rgba(0,0,0,0.3);
-      transition: all 0.3s;
+      background: rgba(15, 23, 42, 0.6);
+      backdrop-filter: blur(4px);
+      transition: transform 0.6s;
+      transform-style: preserve-3d;
     }
-    .tile.filled { border-color: #94a3b8; }
+    .tile.filled { border-color: #94a3b8; animation: pop 0.1s; }
     .tile.correct { background-color: var(--correct); border-color: var(--correct); color: #020617; }
     .tile.present { background-color: var(--present); border-color: var(--present); color: #020617; }
     .tile.absent { background-color: var(--absent); border-color: var(--absent); }
+    
+    .tile.flip {
+        animation: flip 0.6s ease forwards;
+    }
+
+    @keyframes pop { 50% { transform: scale(1.1); } }
+    @keyframes flip {
+        0% { transform: rotateX(0); }
+        50% { transform: rotateX(90deg); }
+        100% { transform: rotateX(0); }
+    }
+    
+    .shake {
+        animation: shake 0.5s;
+    }
+    @keyframes shake {
+        0%, 100% { transform: translateX(0); }
+        10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+        20%, 40%, 60%, 80% { transform: translateX(5px); }
+    }
 
     .keyboard { display: flex; flex-direction: column; gap: 5px; margin-top: 20px; width: 100%; max-width: 500px; padding: 0 5px; }
     .key-row { display: flex; gap: 3px; justify-content: center; width: 100%; }
@@ -95,6 +127,33 @@
         h1 { font-size: 1.5rem; }
         .key { height: 45px; font-size: clamp(0.6rem, 2.5vw, 0.8rem); }
     }
+    
+    /* Modal Styles */
+    .modal-overlay {
+        position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0,0,0,0.8);
+        display: flex; justify-content: center; align-items: center;
+        z-index: 100;
+        opacity: 0; pointer-events: none; transition: opacity 0.3s;
+        backdrop-filter: blur(5px);
+    }
+    .modal-overlay.show { opacity: 1; pointer-events: auto; }
+    .modal {
+        background: #0f172a; border: 1px solid #334155;
+        padding: 20px; border-radius: 15px; text-align: center;
+        max-width: 90%; width: 400px;
+        box-shadow: 0 0 50px rgba(0,0,0,0.5);
+        transform: translateY(20px); transition: transform 0.3s;
+    }
+    .modal-overlay.show .modal { transform: translateY(0); }
+    .modal h2 { margin-top: 0; color: #f4f4f5; }
+    .modal-img { width: 100%; border-radius: 10px; margin: 15px 0; border: 2px solid #334155; }
+    .modal-btn {
+        background: #38bdf8; color: #020617; border: none; padding: 10px 20px;
+        border-radius: 8px; font-weight: bold; cursor: pointer; font-size: 1rem;
+        margin-top: 10px;
+    }
+    .modal-btn:hover { background: #7dd3fc; }
   </style>
 </head>
 <body>
@@ -108,6 +167,15 @@
 </div>
 
 <div id="message"></div>
+
+<!-- Modal -->
+<div id="modal-overlay" class="modal-overlay">
+    <div class="modal">
+        <h2 id="modal-title"></h2>
+        <div id="modal-content"></div>
+        <button class="modal-btn" onclick="initGame()">Jugar de nuevo</button>
+    </div>
+</div>
 
 <div id="board" class="game-container"></div>
 <div id="keyboard" class="keyboard"></div>
@@ -149,6 +217,7 @@
         guesses = [];
         gameOver = false;
         document.getElementById('message').innerText = "";
+        document.getElementById('modal-overlay').classList.remove('show');
         
         renderBoard();
         renderKeyboard();
@@ -159,7 +228,7 @@
         board.innerHTML = '';
 
         // Render past guesses
-        guesses.forEach(guess => {
+        guesses.forEach((guess, guessIndex) => {
             const row = document.createElement('div');
             row.className = 'row';
             
@@ -192,7 +261,6 @@
                 tile.className = `tile ${status[i]}`;
                 tile.innerText = char;
                 row.appendChild(tile);
-                updateKey(char, status[i]);
             });
             board.appendChild(row);
         });
@@ -216,14 +284,31 @@
         }
     }
 
-    const keysStatus = {};
-    function updateKey(char, status) {
-        const current = keysStatus[char];
-        if (status === 'correct') keysStatus[char] = 'correct';
-        else if (status === 'present' && current !== 'correct') keysStatus[char] = 'present';
-        else if (status === 'absent' && current !== 'correct' && current !== 'present') keysStatus[char] = 'absent';
+    // Helper to update keyboard colors based on all guesses
+    function updateKeyboardColors() {
+        // Reset
+        for(let k in keysStatus) delete keysStatus[k];
+        
+        // Re-calculate from scratch
+        guesses.forEach(guess => {
+            const targetArr = cleanTarget.split('');
+            const guessArr = guess.split('');
+            
+            guessArr.forEach((char, i) => {
+                let status = 'absent';
+                if (char === targetArr[i]) status = 'correct';
+                else if (targetArr.includes(char)) status = 'present';
+                
+                const current = keysStatus[char];
+                if (status === 'correct') keysStatus[char] = 'correct';
+                else if (status === 'present' && current !== 'correct') keysStatus[char] = 'present';
+                else if (status === 'absent' && current !== 'correct' && current !== 'present') keysStatus[char] = 'absent';
+            });
+        });
         renderKeyboard();
     }
+
+    const keysStatus = {};
 
     function renderKeyboard() {
         const keyboard = document.getElementById('keyboard');
@@ -257,32 +342,76 @@
         });
     }
 
-    function handleInput(key) {
+    async function handleInput(key) {
         if (gameOver) return;
 
         if (key === 'BACKSPACE') {
             currentGuess.pop();
+            renderBoard();
         } else if (key === 'ENTER') {
             if (currentGuess.length !== cleanTarget.length) {
-                document.getElementById('message').innerText = "¡Faltan letras!";
+                const row = document.querySelector('#board .row:last-child');
+                if(row) {
+                    row.classList.add('shake');
+                    setTimeout(() => row.classList.remove('shake'), 500);
+                }
+                showMessage("¡Faltan letras!");
                 return;
             }
             const guessStr = currentGuess.join('');
+            
+            // Animate Reveal
+            const row = document.querySelector('#board .row:last-child');
+            const tiles = row.querySelectorAll('.tile');
+            
+            // Calculate colors for this guess
+            const targetArr = cleanTarget.split('');
+            const guessArr = guessStr.split('');
+            const status = new Array(guessStr.length).fill('absent');
+            const targetCounts = {};
+            targetArr.forEach(char => targetCounts[char] = (targetCounts[char] || 0) + 1);
+
+            guessArr.forEach((char, i) => {
+                if (char === targetArr[i]) {
+                    status[i] = 'correct';
+                    targetCounts[char]--;
+                }
+            });
+            guessArr.forEach((char, i) => {
+                if (status[i] !== 'correct' && targetCounts[char] > 0) {
+                    status[i] = 'present';
+                    targetCounts[char]--;
+                }
+            });
+
+            // Apply animation sequentially
+            for(let i=0; i<tiles.length; i++) {
+                tiles[i].style.animationDelay = `${i * 0.1}s`;
+                tiles[i].classList.add('flip');
+                // Wait for half flip to change color
+                setTimeout(() => {
+                    tiles[i].classList.add(status[i]);
+                }, (i * 100) + 250);
+            }
+
+            // Wait for all animations to finish before proceeding
+            await new Promise(r => setTimeout(r, (tiles.length * 100) + 600));
+
             guesses.push(guessStr);
             currentGuess = [];
+            updateKeyboardColors();
             
             if (guessStr === cleanTarget) {
-                gameOver = true;
-                document.getElementById('message').innerText = `¡VICTORIA! Era ${targetName}`;
-                confettiEffect();
+                endGame(true);
             } else if (guesses.length >= maxGuesses) {
-                gameOver = true;
-                document.getElementById('message').innerText = `GAME OVER. Era ${targetName}`;
+                endGame(false);
+            } else {
+                renderBoard(); // Prepare next row
             }
         } else if (currentGuess.length < cleanTarget.length && /^[A-Z]$/.test(key)) {
             currentGuess.push(key);
+            renderBoard();
         }
-        renderBoard();
     }
 
     document.addEventListener('keydown', (e) => {
@@ -292,9 +421,42 @@
         }
     });
     
+    function showMessage(msg) {
+        const m = document.getElementById('message');
+        m.innerText = msg;
+        setTimeout(() => m.innerText = "", 2000);
+    }
+
+    function endGame(win) {
+        gameOver = true;
+        const modal = document.getElementById('modal-overlay');
+        const title = document.getElementById('modal-title');
+        const content = document.getElementById('modal-content');
+        
+        title.innerText = win ? "¡VICTORIA!" : "DERROTA";
+        title.style.color = win ? "var(--correct)" : "#f87171";
+        
+        const exceptions = {
+            "Wukong": "MonkeyKing", "Renata Glasc": "Renata", "Nunu & Willump": "Nunu",
+            "LeBlanc": "Leblanc", "Kha'Zix": "Khazix", "Cho'Gath": "Chogath",
+            "Kai'Sa": "Kaisa", "Vel'Koz": "Velkoz", "Bel'Veth": "Belveth"
+        };
+        let splashName = targetName.replace(/[^a-zA-Z]/g, '');
+        if (exceptions[targetName]) splashName = exceptions[targetName];
+        
+        content.innerHTML = `
+            <p>El campeón era <strong>${targetName}</strong></p>
+            <img src="https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${splashName}_0.jpg" class="modal-img" onerror="this.src='https://ddragon.leagueoflegends.com/cdn/img/champion/splash/${targetName}_0.jpg'">
+            <p>${win ? "¡Has demostrado tu conocimiento de la Grieta!" : "¡Suerte para la próxima!"}</p>
+        `;
+        
+        modal.classList.add('show');
+        if(win) confettiEffect();
+    }
+    
     function confettiEffect() {
-        // Simple visual effect could be added here
-        document.body.style.background = "linear-gradient(45deg, #064e3b, #020617)";
+        // Simple visual effect
+        // document.body.style.background = "linear-gradient(45deg, #064e3b, #020617)";
     }
 
     loadChampions();
