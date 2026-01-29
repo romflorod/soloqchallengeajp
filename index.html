@@ -230,12 +230,12 @@
       width: 160px;
       height: 160px;
       object-fit: contain;
-      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
+      /* El filtro se aplica dinámicamente por JS */
       transition: transform 0.3s ease, filter 0.3s ease;
     }
     .card:hover .rank-icon {
       transform: scale(1.15) rotate(-5deg);
-      filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.4));
+      /* El brillo al hover también será dinámico */
     }
 
     /* Player Info */
@@ -272,6 +272,13 @@
       color: #71717a;
       font-weight: 400;
       font-size: 0.9em;
+    }
+
+    .main-role-icon {
+        width: 24px;
+        height: 24px;
+        filter: invert(1) opacity(0.8);
+        margin-left: 8px;
     }
 
     /* Tier Info */
@@ -402,7 +409,7 @@
       width: 48px;
       height: 48px;
       border-radius: 50%;
-      border: 2px solid var(--card-bg); /* Borde oscuro para separar */
+      border: 2px solid var(--card-bg); 
       object-fit: cover;
       background: #18181b;
       box-shadow: 0 4px 6px rgba(0,0,0,0.3);
@@ -552,6 +559,7 @@
     .h-role-icon { width: 20px; height: 20px; opacity: 0.7; filter: invert(1); }
     .h-meta { display: flex; flex-direction: column; gap: 2px; min-width: 60px; }
     .h-cs-min { font-size: 0.65rem; color: #64748b; }
+    .h-time { font-size: 0.65rem; color: #64748b; margin-left: auto; min-width: 50px; text-align: right; }
     
     .multikill-badge {
         font-size: 0.6rem; font-weight: 800; padding: 1px 4px; border-radius: 3px;
@@ -615,6 +623,20 @@ const tierValues = {
   "UNRANKED": -10
 };
 
+const tierColors = {
+    "CHALLENGER": "#0093FF",
+    "GRANDMASTER": "#FF2B2B",
+    "MASTER": "#9D48E0",
+    "DIAMOND": "#576BCE",
+    "EMERALD": "#00A35A",
+    "PLATINUM": "#25C8C6",
+    "GOLD": "#E3B22D",
+    "SILVER": "#8C9499",
+    "BRONZE": "#7F5639",
+    "IRON": "#585959",
+    "UNRANKED": "#71717a"
+};
+
 function getRankValue(rankStr) {
     if (!rankStr) return 0;
     const map = { "I": 1, "II": 2, "III": 3, "IV": 4, "1": 1, "2": 2, "3": 3, "4": 4 };
@@ -662,6 +684,24 @@ function getChampImage(name) {
     if (exceptions[name]) cleanName = exceptions[name]; // Check original name too
     
     return `https://ddragon.leagueoflegends.com/cdn/${ddragonVersion}/img/champion/${cleanName}.png`;
+}
+
+function getRoleIconUrl(position) {
+    if (!position || position === "FILL") return "";
+    const pos = position.toLowerCase();
+    const map = {
+        "top": "top", "jungle": "jungle", "middle": "mid", "mid": "mid",
+        "bottom": "bot", "bot": "bot", "utility": "support", "support": "support"
+    };
+    const iconName = map[pos] || pos;
+    return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${iconName}.svg`;
+}
+
+function getTimeAgo(timestamp) {
+    const seconds = Math.floor((Date.now() - timestamp) / 1000);
+    if (seconds < 3600) return Math.floor(seconds / 60) + "m";
+    if (seconds < 86400) return Math.floor(seconds / 3600) + "h";
+    return Math.floor(seconds / 86400) + "d";
 }
 
 function calculateScore(p) {
@@ -786,9 +826,11 @@ async function loadLeaderboard() {
     if (top3.length > 0) {
         topChampsHtml = '<div class="top-champs-container">';
         top3.forEach(c => {
+             // Borde de color según Winrate
+             const borderColor = c.winrate >= 60 ? '#4ade80' : (c.winrate >= 50 ? '#fbbf24' : '#3f3f46');
              topChampsHtml += `
                 <div class="top-champ-wrapper" title="${c.name}: ${c.winrate}% WR (${c.wins}W ${c.losses}L)">
-                    <img src="${getChampImage(c.name)}" class="top-champ-img" alt="${c.name}">
+                    <img src="${getChampImage(c.name)}" class="top-champ-img" alt="${c.name}" style="border-color: ${borderColor}">
                 </div>`;
         });
         topChampsHtml += '</div>';
@@ -850,6 +892,7 @@ async function loadLeaderboard() {
             const resultClass = m.win ? 'win' : 'loss';
             const durationMin = Math.floor(m.gameDuration / 60);
             const csPerMin = (m.cs / (m.gameDuration / 60)).toFixed(1);
+            const timeAgo = getTimeAgo(m.gameCreation + m.gameDuration * 1000);
             
             // Icono de Rol
             let roleIcon = '';
@@ -884,21 +927,29 @@ async function loadLeaderboard() {
                     <div class="h-cs-min">(${csPerMin} cs/m) • ${durationMin}m</div>
                 </div>
                 ${itemsHtml}
+                <div class="h-time">${timeAgo}</div>
                 ${badgeHtml}
             </div>`;
         });
         detailedHistoryHtml += '</div>';
     }
 
+    // Glow dinámico según liga
+    const tierColor = tierColors[p.tier.toUpperCase()] || "#71717a";
+    const glowStyle = `filter: drop-shadow(0 0 25px ${tierColor}80);`; // 80 es transparencia hex
+    
+    // Icono de Rol Principal
+    const mainRoleIcon = p.main_role ? `<img src="${getRoleIconUrl(p.main_role)}" class="main-role-icon" title="Main ${p.main_role}">` : '';
+
     card.innerHTML = `
       <div class="card-main">
           <div class="rank-pos ${rankClass}">#${index + 1}</div>
           
-          <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" onerror="this.style.display='none'">
+          <img src="${getRankIcon(p.tier)}" class="rank-icon" alt="${p.tier}" style="${glowStyle}" onerror="this.style.display='none'">
 
           <div class="player-info">
             <div class="summoner-name">
-                ${p.name} <span class="summoner-tag">#${p.tag}</span> 
+                ${p.name} <span class="summoner-tag">#${p.tag}</span> ${mainRoleIcon}
             </div>
             <div class="winrate-container">
                 <div class="progress-bg">

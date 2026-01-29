@@ -181,6 +181,11 @@ def player():
                                 champ_stats[c_name]['wins'] += 1
                             else:
                                 champ_stats[c_name]['losses'] += 1
+        
+        # Calculate Main Role
+        positions = [m.get('teamPosition') for m in matches_history if m.get('teamPosition')]
+        main_role = max(set(positions), key=positions.count) if positions else "FILL"
+
         print(f"[API] Step 3 took {time.time() - step3_start:.2f}s")
 
         # Calculate stats
@@ -227,7 +232,8 @@ def player():
             "kda": kda, "avg_k": avg_k, "avg_d": avg_d, "avg_a": avg_a, "streak": streak,
             "top_champs": top_champs,
             "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
-            "matches_history": matches_history
+            "matches_history": matches_history,
+            "main_role": main_role
         }
 
         if not solo_q_data:
