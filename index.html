@@ -12,10 +12,10 @@
     /* Reset & Base */
     * { box-sizing: border-box; }
     :root {
-      --bg-dark: #09090b; /* Zinc 950 - Más profundo */
-      --card-bg: rgba(24, 24, 27, 0.7); /* Zinc 900 */
+      --bg-dark: #020617; /* Slate 950 - Más profundo y elegante */
+      --card-bg: rgba(15, 23, 42, 0.6); /* Slate 900 con transparencia */
       --card-border: rgba(255, 255, 255, 0.08);
-      --accent-glow: rgba(56, 189, 248, 0.1);
+      --accent-glow: rgba(56, 189, 248, 0.15);
       --gold: #fbbf24;
       --text-main: #f4f4f5;
       --text-muted: #a1a1aa;
@@ -26,7 +26,7 @@
       background-color: var(--bg-dark);
       color: var(--text-main);
       background-image: 
-        radial-gradient(circle at 50% 0%, rgba(56, 189, 248, 0.15) 0%, transparent 60%),
+        radial-gradient(circle at 50% -20%, rgba(56, 189, 248, 0.25) 0%, transparent 70%),
         linear-gradient(180deg, rgba(0,0,0,0) 0%, var(--bg-dark) 100%);
       margin: 0;
       padding: 40px 20px;
@@ -81,7 +81,7 @@
       color: inherit; /* Mantener color de texto */
       background-color: var(--card-bg);
       backdrop-filter: blur(12px);
-      border: 1px solid var(--card-border);
+      border: 1px solid rgba(255, 255, 255, 0.05);
       border-radius: 1.25rem;
       display: flex;
       flex-direction: column; /* Para el desplegable */
@@ -95,17 +95,17 @@
       display: flex;
       flex-wrap: wrap; /* Permite que el contenido baje en móviles */
       align-items: center;
-      gap: 1.5rem;
-      padding: 1.5rem 2rem;
+      gap: 2rem;
+      padding: 2rem;
       width: 100%;
     }
 
     .card:hover {
       transform: translateY(-4px);
-      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.3), 0 10px 10px -5px rgba(0, 0, 0, 0.2);
-      border-color: rgba(255, 255, 255, 0.15);
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+      border-color: rgba(255, 255, 255, 0.2);
       cursor: pointer;
-      background-color: rgba(39, 39, 42, 0.8);
+      background-color: rgba(30, 41, 59, 0.8);
     }
     
     /* Streak Glow Effects */
@@ -227,15 +227,15 @@
 
     /* Rank Icon */
     .rank-icon {
-      width: 120px;
-      height: 120px;
+      width: 160px;
+      height: 160px;
       object-fit: contain;
-      filter: drop-shadow(0 0 25px rgba(0,0,0,0.7));
+      filter: drop-shadow(0 10px 20px rgba(0,0,0,0.5));
       transition: transform 0.3s ease, filter 0.3s ease;
     }
     .card:hover .rank-icon {
-      transform: scale(1.1) rotate(5deg);
-      filter: drop-shadow(0 0 35px rgba(255, 255, 255, 0.3));
+      transform: scale(1.15) rotate(-5deg);
+      filter: drop-shadow(0 0 40px rgba(56, 189, 248, 0.4));
     }
 
     /* Player Info */
@@ -248,7 +248,7 @@
     }
 
     .summoner-name {
-      font-size: 1.3rem;
+      font-size: 1.75rem;
       font-weight: 700;
       margin-bottom: 0.25rem;
       color: #fff;
@@ -286,7 +286,7 @@
     }
 
     .tier-text {
-      font-size: 1.4rem;
+      font-size: 1.8rem;
       font-weight: 800;
       color: #38bdf8;
       text-transform: uppercase;
@@ -295,7 +295,7 @@
     }
 
     .lp-text {
-      font-size: 1rem;
+      font-size: 1.2rem;
       font-weight: 500;
       color: #e4e4e7;
     }
@@ -495,16 +495,29 @@
     @media (max-width: 768px) {
         .card-main {
             gap: 1rem;
-            padding: 1rem;
+            padding: 1.5rem;
+            justify-content: center;
+        }
+        .rank-icon {
+            width: 110px; /* Un poco más pequeño en móvil para que quepa */
+            height: 110px;
+        }
+        .player-info {
+            align-items: center;
+            text-align: center;
+            width: 100%;
         }
         .tier-info {
             width: 100%;
-            flex-direction: row;
-            justify-content: space-between;
+            flex-direction: column;
             align-items: center;
+            text-align: center;
             margin-top: 0.5rem;
             padding-top: 0.5rem;
             border-top: 1px solid rgba(255,255,255,0.05);
+        }
+        .rank-flags {
+            justify-content: center;
         }
     }
 
