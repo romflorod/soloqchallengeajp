@@ -692,8 +692,8 @@ function getRoleIconUrl(position) {
     if (!position || position === "FILL") return "";
     const pos = position.toLowerCase();
     const map = {
-        "top": "top", "jungle": "jungle", "middle": "mid", "mid": "mid",
-        "bottom": "bot", "bot": "bot", "utility": "support", "support": "support"
+        "top": "top", "jungle": "jungle", "middle": "middle", "mid": "middle",
+        "bottom": "bottom", "bot": "bottom", "utility": "utility", "support": "utility"
     };
     const iconName = map[pos] || pos;
     return `https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${iconName}.svg`;
@@ -899,9 +899,8 @@ async function loadLeaderboard() {
             // Icono de Rol
             let roleIcon = '';
             if (m.teamPosition && m.teamPosition !== '') {
-                const pos = m.teamPosition.toLowerCase();
-                // CommunityDragon tiene iconos geniales para posiciones
-                roleIcon = `<img src="https://raw.communitydragon.org/latest/plugins/rcp-fe-lol-static-assets/global/default/svg/position-${pos === 'utility' ? 'support' : pos === 'middle' ? 'mid' : pos}.svg" class="h-role-icon" title="${m.teamPosition}">`;
+                const iconUrl = getRoleIconUrl(m.teamPosition);
+                if (iconUrl) roleIcon = `<img src="${iconUrl}" class="h-role-icon" title="${m.teamPosition}">`;
             }
             
             // Multikill Badge
