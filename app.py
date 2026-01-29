@@ -33,7 +33,8 @@ def fetch_data(url, headers, timeout=5, retries=3):
             return response.json(), None
         except requests.exceptions.RequestException as e:
             if i == retries:
-                print(f"[API] Error fetching {url}: {e}")
+                if "404" not in str(e): # Silenciar logs de 404 para limpieza
+                    print(f"[API] Error fetching {url}: {e}")
                 status_code = 500
                 error_msg = str(e)
                 if hasattr(e, 'response') and e.response is not None:
@@ -114,27 +115,19 @@ def player():
         summoner_url = f"https://euw1.api.riotgames.com/lol/summoner/v4/summoners/by-puuid/{puuid}"
         ranked_url = f"https://euw1.api.riotgames.com/lol/league/v4/entries/by-puuid/{puuid}"
         match_ids_url = f"https://europe.api.riotgames.com/lol/match/v5/matches/by-puuid/{puuid}/ids?queue=420&start=0&count=5"
-        mastery_url = f"https://euw1.api.riotgames.com/lol/champion-mastery/v4/champion-masteries/by-puuid/{puuid}/top?count=3"
-        spectator_url = f"https://euw1.api.riotgames.com/lol/spectator/v5/active-games/by-summoner/{puuid}"
 
-        def fetch_silent(u, h, ignore_404=False):
-            d, err = fetch_data(u, h)
-            if err and err['status'] == 404 and ignore_404:
-                return None # Es normal no encontrar partida activa (Spectator)
+        def fetch_silent(u, h):
+            d, _ = fetch_data(u, h)
             return d
 
         with ThreadPoolExecutor(max_workers=3) as executor:
             future_summoner = executor.submit(fetch_silent, summoner_url, headers)
             future_ranked = executor.submit(fetch_silent, ranked_url, headers)
             future_match_ids = executor.submit(fetch_silent, match_ids_url, headers)
-            future_mastery = executor.submit(fetch_silent, mastery_url, headers)
-            future_spectator = executor.submit(fetch_silent, spectator_url, headers, True) # Ignore 404 for spectator
 
             summoner_data = future_summoner.result() or {}
             ranked_data = future_ranked.result() or []
             match_ids = future_match_ids.result() or []
-            mastery_data = future_mastery.result() or []
-            spectator_data = future_spectator.result()
 
         print(f"[API] Step 2 took {time.time() - step2_start:.2f}s")
         level = summoner_data.get('summonerLevel')
@@ -212,21 +205,6 @@ def player():
                 "winrate": winrate
             })
 
-        # Process Mastery
-        top_mastery = []
-        if mastery_data:
-            for m in mastery_data:
-                top_mastery.append({
-                    "championId": m.get('championId'),
-                    "level": m.get('championLevel'),
-                    "points": m.get('championPoints')
-                })
-
-        # Process Active Game
-        is_in_game = False
-        if spectator_data and spectator_data.get('gameId'):
-            is_in_game = True
-
         if not solo_q_data:
             return jsonify({
                 "name": game_name,
@@ -244,9 +222,7 @@ def player():
                 "avg_a": avg_a,
                 "streak": streak,
                 "top_champs": top_champs,
-                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
-                "top_mastery": top_mastery,
-                "is_in_game": is_in_game
+                "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}"
             })
 
         response = {
@@ -267,13 +243,14 @@ def player():
             "top_champs": top_champs,
             "ladder_rank": None,
             "ranked_flex": None,
-            "mastery": None, # Deprecated field
-            "masteries": [], # Deprecated field
             "past_rank": None,
             "past_ranks": [],
             "opgg_url": f"https://www.op.gg/summoners/euw/{urllib.parse.quote(name)}-{tag}",
-            "top_mastery": top_mastery,
-            "is_in_game": is_in_game
+            # Nuevos datos de Ranked SoloQ
+            "hot_streak": solo_q_data.get('hotStreak', False),
+            "veteran": solo_q_data.get('veteran', False),
+            "fresh_blood": solo_q_data.get('freshBlood', False),
+            "inactive": solo_q_data.get('inactive', False)
         }
         
         # SAVE TO CACHE

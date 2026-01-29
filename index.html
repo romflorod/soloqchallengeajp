@@ -315,6 +315,13 @@
       color: #71717a;
       border: 1px solid rgba(255,255,255,0.1);
     }
+
+    .rank-flags {
+        display: flex;
+        gap: 4px;
+        margin-top: 4px;
+        justify-content: flex-end;
+    }
     
     /* Match History Squares */
     .match-history {
@@ -478,34 +485,6 @@
       background: rgba(255, 255, 255, 0.2);
     }
     
-    /* Live Badge */
-    .live-badge {
-        background-color: #ef4444;
-        color: white;
-        font-size: 0.65rem;
-        padding: 2px 6px;
-        border-radius: 4px;
-        font-weight: 700;
-        margin-left: 8px;
-        animation: pulse-red 2s infinite;
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-    }
-    .live-badge::before {
-        content: '';
-        display: block;
-        width: 6px;
-        height: 6px;
-        background-color: white;
-        border-radius: 50%;
-    }
-    @keyframes pulse-red {
-        0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7); }
-        70% { box-shadow: 0 0 0 6px rgba(239, 68, 68, 0); }
-        100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0); }
-    }
-
     /* Mobile Responsiveness */
     @media (max-width: 768px) {
         .card-main {
@@ -783,23 +762,6 @@ async function loadLeaderboard() {
         champsHtml = '<div class="champ-row" style="font-style:italic; opacity:0.6">No hay datos recientes disponibles</div>';
     }
 
-    // HTML de Maestrías
-    let masteryHtml = '';
-    if (p.top_mastery && p.top_mastery.length > 0) {
-        masteryHtml = `<div class="stats-title" style="margin-top:1rem;">Maestría</div>
-        <div style="display:flex; gap:12px; overflow-x:auto; padding-bottom:5px;">`;
-        p.top_mastery.forEach(m => {
-            const champName = championMap[m.championId] || "Unknown";
-            masteryHtml += `
-            <div style="text-align:center; min-width:60px;">
-                <img src="${getChampImage(champName)}" style="width:34px; height:34px; border-radius:50%; border:2px solid #fbbf24; padding:1px;" title="${champName}">
-                <div style="font-size:0.7rem; color:#fbbf24; font-weight:bold; margin-top:2px;">Lvl ${m.level}</div>
-                <div style="font-size:0.65rem; color:#94a3b8;">${(m.points || 0).toLocaleString()}</div>
-            </div>`;
-        });
-        masteryHtml += `</div>`;
-    }
-
     card.innerHTML = `
       <div class="card-main">
           <div class="rank-pos ${rankClass}">#${index + 1}</div>
@@ -809,7 +771,6 @@ async function loadLeaderboard() {
           <div class="player-info">
             <div class="summoner-name">
                 ${p.name} <span class="summoner-tag">#${p.tag}</span> 
-                ${p.is_in_game ? '<span class="live-badge">LIVE</span>' : ''}
             </div>
             <div class="winrate-container">
                 <div class="progress-bg">
@@ -836,6 +797,11 @@ async function loadLeaderboard() {
                 }
                 ${p.ranked_flex ? `<div class="rank-badge-small" title="Ranked Flex">Flex: ${p.ranked_flex}</div>` : ''}
             </div>
+            <div class="rank-flags">
+                ${p.hot_streak ? '<span class="flag-badge" title="Racha de victorias">🔥 Hot</span>' : ''}
+                ${p.veteran ? '<span class="flag-badge" title="Veterano en la liga">🛡️ Vet</span>' : ''}
+                ${p.fresh_blood ? '<span class="flag-badge" title="Nuevo en la liga">🩸 New</span>' : ''}
+            </div>
           </div>
           <div class="expand-icon">▼</div>
       </div>
@@ -845,7 +811,6 @@ async function loadLeaderboard() {
             <span>Winrate</span>
           </div>
           ${champsHtml}
-          ${masteryHtml}
           <a href="${p.opgg_url || '#'}" target="_blank" class="opgg-btn">Ver perfil completo en OP.GG ↗</a>
       </div>
     `;
